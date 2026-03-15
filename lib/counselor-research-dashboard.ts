@@ -573,7 +573,7 @@ export class CounselorResearchDashboardSystem {
     }, {} as { [type: string]: { usage: number; effectiveness: number; count: number } });
 
     const topSuggestions = Object.entries(suggestionStats)
-      .map(([type, stats]) => ({
+      .map(([type, stats]: [string, { usage: number; effectiveness: number; count: number }]) => ({
         type,
         usage: stats.usage,
         effectiveness: stats.count > 0 ? stats.effectiveness / stats.count : 0
@@ -667,7 +667,7 @@ export class CounselorResearchDashboardSystem {
       ORDER BY MIN(el.logged_at)
     `, [counselorId, timeRange.start, timeRange.end]);
 
-    return seasonalData.map(row => ({
+    return seasonalData.rows.map(row => ({
       month: row.month.trim(),
       averageMood: parseFloat(row.average_mood)
     }));
@@ -697,7 +697,7 @@ export class CounselorResearchDashboardSystem {
     }, {} as { [trigger: string]: number });
 
     return Object.entries(triggerCounts)
-      .map(([trigger, count]) => ({ trigger, count }))
+      .map(([trigger, count]: [string, number]) => ({ trigger, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
   }

@@ -41,7 +41,7 @@ export interface FederationMessage {
   id: string;
   fromNode: string;
   toNode: string;
-  type: 'user_migration' | 'counselor_sync' | 'room_federation' | 'emergency_broadcast';
+  type: 'user_migration' | 'counselor_sync' | 'room_federation' | 'emergency_broadcast' | 'node_status';
   payload: any;
   timestamp: string;
   priority: 'low' | 'medium' | 'high';

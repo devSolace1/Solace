@@ -150,7 +150,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className="mt-4 text-lg font-semibold text-gray-900">2. Connect</h3>
                 <p className="mt-2 text-sm text-gray-600">
-                  Share what's on your mind in a safe, judgment-free space
+                  Share what&apos;s on your mind in a safe, judgment-free space
                 </p>
               </Card>
             </motion.div>
@@ -287,7 +287,7 @@ export default function LandingPage() {
                     <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" />
                     <div>
                       <h4 className="font-semibold text-gray-900">Zero Data Collection</h4>
-                      <p className="text-sm text-gray-600">We don't store any personal information, chat logs, or identifiable data</p>
+                      <p className="text-sm text-gray-600">We don&apos;t store any personal information, chat logs, or identifiable data</p>
                     </div>
                   </div>
                   <div className="flex items-start">
@@ -422,7 +422,7 @@ export default function LandingPage() {
               Ready to Start Your Journey?
             </motion.h2>
             <motion.p variants={fadeInUp} className="mt-4 text-lg text-gray-600">
-              Take the first step towards emotional wellness. You're not alone.
+              Take the first step towards emotional wellness. You&apos;re not alone.
             </motion.p>
             <motion.div variants={fadeInUp} className="mt-10">
               <Button size="lg" className="px-12 py-4 text-lg">

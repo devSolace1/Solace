@@ -295,13 +295,13 @@ export class DataMinimizationSystem {
             WHERE created_at < ? AND content NOT LIKE 'ANONYMIZED_%'
           `, [cutoffDate.toISOString()]);
 
-          for (const message of messages) {
+          for (const message of messages.rows) {
             const anonymizedContent = await this.anonymizeTextContent(message.content);
             await adapter.query(`
               UPDATE messages SET content = ? WHERE id = ?
             `, [`ANONYMIZED_${anonymizedContent}`, message.id]);
           }
-          recordsAnonymized = messages.length;
+          recordsAnonymized = messages.rows.length;
           break;
 
         case 'mood_logs':
@@ -311,7 +311,7 @@ export class DataMinimizationSystem {
             WHERE logged_at < ? AND research_consent = true
           `, [cutoffDate.toISOString()]);
 
-          recordsAnonymized = moodLogs[0].count;
+          recordsAnonymized = moodLogs.rows[0].count;
           break;
 
         // Add other categories as needed
@@ -343,7 +343,7 @@ export class DataMinimizationSystem {
       SELECT config_data FROM system_config WHERE config_key = 'data_minimization'
     `);
 
-    if (result.length === 0) {
+    if (result.rows.length === 0) {
       // Return default config
       return {
         policies: this.DEFAULT_POLICIES,
@@ -353,7 +353,7 @@ export class DataMinimizationSystem {
       };
     }
 
-    return JSON.parse(result[0].config_data);
+    return JSON.parse(result.rows[0].config_data);
   }
 
   private async saveMinimizationConfig(config: DataMinimizationConfig): Promise<void> {
@@ -378,7 +378,7 @@ export class DataMinimizationSystem {
     // Count eligible records
     const countQuery = this.getCountQueryForCategory(policy.category, cutoffDate);
     const countResult = await adapter.query(countQuery.query, countQuery.params);
-    const recordCount = countResult[0].count;
+    const recordCount = countResult.rows[0].count;
 
     if (recordCount === 0) {
       return {
@@ -421,7 +421,7 @@ export class DataMinimizationSystem {
     try {
       if (policy.deletionMethod === 'hard_delete') {
         const result = await adapter.query(deleteQuery.query, deleteQuery.params);
-        recordsProcessed = result.affectedRows || recordCount;
+        recordsProcessed = result.rowCount || recordCount;
       } else if (policy.deletionMethod === 'anonymize') {
         await this.anonymizeDataCategory(policy.category, policy.retentionPeriod);
         recordsProcessed = recordCount;
@@ -577,12 +577,12 @@ export class DataMinimizationSystem {
     // Get total records
     const totalQuery = this.getCountQueryForCategory(policy.category, new Date(0));
     const totalResult = await adapter.query(totalQuery.query, totalQuery.params);
-    const totalRecords = totalResult[0].count;
+    const totalRecords = totalResult.rows[0].count;
 
     // Get eligible for deletion
     const eligibleQuery = this.getCountQueryForCategory(policy.category, cutoffDate);
     const eligibleResult = await adapter.query(eligibleQuery.query, eligibleQuery.params);
-    const eligibleRecords = eligibleResult[0].count;
+    const eligibleRecords = eligibleResult.rows[0].count;
 
     // Get deleted last month (from audit logs)
     const deletedLastMonth = await this.getDeletedCountLastMonth(policy.category);
@@ -624,7 +624,7 @@ export class DataMinimizationSystem {
           'DELETE FROM messages WHERE sender_id = ?',
           [userId]
         );
-        deletedCount = messageResult.affectedRows || 0;
+        deletedCount = messageResult.rowCount || 0;
         break;
 
       case 'mood_logs':
@@ -632,7 +632,7 @@ export class DataMinimizationSystem {
           'DELETE FROM emotion_logs WHERE user_id = ?',
           [userId]
         );
-        deletedCount = moodResult.affectedRows || 0;
+        deletedCount = moodResult.rowCount || 0;
         break;
 
       case 'session_data':
@@ -640,7 +640,7 @@ export class DataMinimizationSystem {
           'DELETE FROM session_metrics WHERE user_id = ?',
           [userId]
         );
-        deletedCount = sessionResult.affectedRows || 0;
+        deletedCount = sessionResult.rowCount || 0;
         break;
 
       case 'panic_events':
@@ -648,7 +648,7 @@ export class DataMinimizationSystem {
           'DELETE FROM panic_events WHERE user_id = ?',
           [userId]
         );
-        deletedCount = panicResult.affectedRows || 0;
+        deletedCount = panicResult.rowCount || 0;
         break;
 
       case 'recovery_metrics':
@@ -656,7 +656,7 @@ export class DataMinimizationSystem {
           'DELETE FROM clinical_recovery_metrics WHERE user_id = ?',
           [userId]
         );
-        deletedCount = recoveryResult.affectedRows || 0;
+        deletedCount = recoveryResult.rowCount || 0;
         break;
 
       case 'healing_guidance':
@@ -664,7 +664,7 @@ export class DataMinimizationSystem {
           'DELETE FROM healing_guidance_interactions WHERE user_id = ?',
           [userId]
         );
-        deletedCount = guidanceResult.affectedRows || 0;
+        deletedCount = guidanceResult.rowCount || 0;
         break;
 
       // Add other categories as needed

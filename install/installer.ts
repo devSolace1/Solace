@@ -77,8 +77,8 @@ export class Installer {
 
     // Check Node.js version
     const nodeVersion = process.version;
-    if (!this.isVersionCompatible(nodeVersion, this.REQUIRED_NODE_VERSION)) {
-      throw new Error(`Node.js ${this.REQUIRED_NODE_VERSION} or higher is required. Current: ${nodeVersion}`);
+    if (!this.isVersionCompatible(nodeVersion, Installer.REQUIRED_NODE_VERSION)) {
+      throw new Error(`Node.js ${Installer.REQUIRED_NODE_VERSION} or higher is required. Current: ${nodeVersion}`);
     }
     console.log(`✅ Node.js version: ${nodeVersion}`);
 

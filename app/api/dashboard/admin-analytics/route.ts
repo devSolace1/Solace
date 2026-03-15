@@ -3,14 +3,30 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { analyticsManager } from '../../../../lib/analytics-manager';
-import { auth } from '../../../../lib/auth';
+import { getSupabaseServer } from '../../../../lib/supabaseServer';
 import { distributedManager } from '../../../../lib/distributed-manager';
 
 export async function GET(request: NextRequest) {
   try {
     // Verify counselor/admin access
-    const user = await auth.getCurrentUser(request);
-    if (!user || !['counselor', 'moderator'].includes(user.role)) {
+    const supabase = getSupabaseServer();
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check if user is counselor or moderator
+    const { data: userData, error: roleError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (roleError || !userData || !['counselor', 'moderator'].includes(userData.role)) {
       return NextResponse.json(
         { error: 'Unauthorized access' },
         { status: 403 }
@@ -158,15 +174,31 @@ function generateInsights(data: any) {
 
   return insights.sort((a, b) => {
     const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-    return priorityOrder[b.priority] - priorityOrder[a.priority];
+    return priorityOrder[b.priority as keyof typeof priorityOrder] - priorityOrder[a.priority as keyof typeof priorityOrder];
   });
 }
 
 // Export detailed metrics for specific analysis
 export async function POST(request: NextRequest) {
   try {
-    const user = await auth.getCurrentUser(request);
-    if (!user || user.role !== 'moderator') {
+    const supabase = getSupabaseServer();
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check if user is moderator
+    const { data: userData, error: roleError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (roleError || !userData || userData.role !== 'moderator') {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

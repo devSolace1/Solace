@@ -16,7 +16,7 @@
     "docker:down": "docker-compose down",
     "db:migrate": "node database/migrations.js",
     "backup": "node scripts/backup.js",
-    "validate:v8": "node scripts/validate-v8.js",
+    "validate:v8": "node scripts/validate-v8.js"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

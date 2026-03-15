@@ -93,7 +93,7 @@ export default function UserDashboard() {
       try {
         // Load emotional summary
         const summaryRes = await fetch('/api/dashboard/emotional-summary', {
-          headers: { 'X-User-Id': userId },
+          headers: userId ? { 'X-User-Id': userId } : {},
         });
         if (summaryRes.ok) {
           const data = await summaryRes.json();
@@ -102,7 +102,7 @@ export default function UserDashboard() {
 
         // Load recent sessions
         const sessionsRes = await fetch('/api/dashboard/recent-sessions', {
-          headers: { 'X-User-Id': userId },
+          headers: userId ? { 'X-User-Id': userId } : {},
         });
         if (sessionsRes.ok) {
           const data = await sessionsRes.json();
@@ -148,7 +148,7 @@ export default function UserDashboard() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
               <p className="text-gray-600 mt-1">
-                How are you feeling today? Remember, you're taking positive steps.
+                How are you feeling today? Remember, you&apos;re taking positive steps.
               </p>
             </div>
             {unreadNotifications.length > 0 && (

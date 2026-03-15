@@ -74,7 +74,7 @@ export class IntelligentCounselorRouter {
     return {
       counselorId: bestMatch.counselor.id,
       matchScore: bestMatch.score.total,
-      reasoning: this.generateReasoning(bestMatch.score),
+      reasoning: this.generateReasoning(bestMatch.score.components),
       alternatives
     };
   }
@@ -105,7 +105,7 @@ export class IntelligentCounselorRouter {
       HAVING COUNT(s.id) < c.max_sessions
     `, [new Date(now.getTime() - 5 * 60 * 1000).toISOString()]); // Active in last 5 minutes
 
-    return result.map(row => ({
+    return result.rows.map(row => ({
       id: row.id,
       availability: row.availability,
       specialization: JSON.parse(row.specialization || '[]'),
@@ -212,9 +212,9 @@ export class IntelligentCounselorRouter {
       WHERE s.counselor_id = ? AND s.participant_id = ? AND s.status = 'completed'
     `, [counselorId, userId]);
 
-    if (result.length === 0 || result[0].session_count === 0) return 0.5;
+    if (result.rows.length === 0 || result.rows[0].session_count === 0) return 0.5;
 
-    const avgRating = result[0].avg_rating || 3.0;
+    const avgRating = result.rows[0].avg_rating || 3.0;
     return avgRating / 5.0;
   }
 

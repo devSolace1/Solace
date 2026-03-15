@@ -1,6 +1,14 @@
 // Run automated installation
 import { NextRequest, NextResponse } from 'next/server';
 
+// Mock installer for now
+const installer = {
+  runInstallation: async (options: any) => {
+    console.log('Mock installation completed', options);
+    // TODO: Implement actual installation logic
+  }
+};
+
 export async function POST(request: NextRequest) {
   try {
     const { dbConfig, platformConfig, adminEmail, generateAdminToken } = await request.json();

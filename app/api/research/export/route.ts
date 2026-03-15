@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '../../../../lib/supabaseServer';
 import { ResearchService } from '../../../../lib/services/researchService';
+import { ResearchMetricType } from '../../../../types';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -38,16 +39,20 @@ export async function GET(req: NextRequest) {
     }
 
     // Parse dates
+    if (!startDate || !endDate) {
+      return NextResponse.json({ error: 'Start and end dates are required' }, { status: 400 });
+    }
+
     const dateRange = {
-      start: startDate ? new Date(startDate).toISOString() : undefined,
-      end: endDate ? new Date(endDate).toISOString() : undefined
+      start: new Date(startDate).toISOString(),
+      end: new Date(endDate).toISOString()
     };
 
     // Export research data
     const exportData = await ResearchService.exportResearchData({
+      studyId: 'default', // Default study ID for now
       format: format as 'json' | 'csv',
-      dateRange,
-      anonymized: includeAnonymized
+      dateRange
     });
 
     if (!exportData) {
@@ -80,7 +85,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { metricType, data, metadata } = body as {
-    metricType: string;
+    metricType: ResearchMetricType;
     data: Record<string, any>;
     metadata?: Record<string, any>;
   };
