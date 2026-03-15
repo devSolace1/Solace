@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getSupabaseClient } from '../../lib/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import { initAnonymousSession } from '../../lib/auth';
 import { useSolaceStore } from '../../lib/store';
 import ChatMessageBubble from './ChatMessageBubble';
@@ -37,20 +37,12 @@ export default function ChatSession() {
 
   const subscribeToMessages = useCallback(
     (sessionId: string, userId: string) => {
-      const supabase = getSupabaseClient();
-      if (!supabase) {
-        console.warn('Realtime client not available - skipping subscription.');
-        return () => {
-          // no-op
-        };
-      }
-
       const channel = supabase
         .channel(`public:messages:session:${sessionId}`)
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages', filter: `session_id=eq.${sessionId}` },
-          (payload) => {
+          (payload: any) => {
             const message = payload.new;
             addMessage({
               id: message.id,
