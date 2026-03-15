@@ -234,19 +234,359 @@ export type SystemHealth = {
   createdAt: string;
 };
 
-// UI Component Types
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
-export type ButtonSize = 'sm' | 'md' | 'lg';
+// ===========================================
+// VERSION 4 TYPES
+// ===========================================
 
-export type CardVariant = 'default' | 'elevated' | 'bordered' | 'minimal';
+export type CrisisAlertType =
+  | 'self_harm'
+  | 'suicidal_ideation'
+  | 'extreme_distress'
+  | 'panic_attack'
+  | 'emotional_crisis';
 
-export type AlertType = 'info' | 'success' | 'warning' | 'error';
+export type CrisisAlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
-export type AnimationType =
-  | 'fadeIn'
-  | 'slideUp'
-  | 'slideDown'
-  | 'slideLeft'
-  | 'slideRight'
-  | 'scaleIn'
-  | 'bounceIn';
+export type CrisisAlertStatus = 'active' | 'escalated' | 'resolved' | 'dismissed';
+
+export type CrisisAlert = {
+  id: string;
+  sessionId: string;
+  userId: string;
+  alertType: CrisisAlertType;
+  severity: CrisisAlertSeverity;
+  status: CrisisAlertStatus;
+  detectionMethod: 'keyword_pattern' | 'sentiment_analysis' | 'manual_report' | 'behavioral_pattern';
+  riskIndicators?: Record<string, any>;
+  assignedCounselorId?: string;
+  moderatorNotified: boolean;
+  createdAt: string;
+  escalatedAt?: string;
+  resolvedAt?: string;
+  resolutionNotes?: string;
+};
+
+export type SupportRoomCategory =
+  | 'heartbreak_recovery'
+  | 'loneliness_support'
+  | 'stress_management'
+  | 'grief_support'
+  | 'relationship_advice'
+  | 'emotional_wellness';
+
+export type SupportRoom = {
+  id: string;
+  name: string;
+  description: string;
+  category: SupportRoomCategory;
+  isActive: boolean;
+  isModerated: boolean;
+  moderatorId?: string;
+  maxParticipants: number;
+  rules?: string;
+  guidelines?: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+  metadata?: Record<string, any>;
+};
+
+export type SupportRoomMessage = {
+  id: string;
+  roomId: string;
+  senderId: string;
+  content: string;
+  contentHash: string;
+  isFlagged: boolean;
+  flagReason?: string;
+  moderatedBy?: string;
+  moderatedAt?: string;
+  moderationAction?: 'approved' | 'edited' | 'removed' | 'banned';
+  replyToId?: string;
+  createdAt: string;
+  editedAt?: string;
+  metadata?: Record<string, any>;
+};
+
+export type CounselorVerificationStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
+
+export type CounselorProfile = {
+  id: string;
+  userId: string;
+  verificationStatus: CounselorVerificationStatus;
+  trainingCompleted: boolean;
+  trainingModules: string[];
+  specializationAreas: string[];
+  yearsExperience?: number;
+  certifications: string[];
+  backgroundCheckStatus?: 'pending' | 'approved' | 'rejected';
+  emergencyTraining: boolean;
+  crisisTraining: boolean;
+  createdAt: string;
+  updatedAt: string;
+  metadata?: Record<string, any>;
+};
+
+export type CounselorStats = {
+  id: string;
+  counselorId: string;
+  periodStart: string;
+  periodEnd: string;
+  sessionsHandled: number;
+  avgResponseTimeSeconds?: number;
+  totalResponseTimeSeconds: number;
+  messagesSent: number;
+  messagesReceived: number;
+  sessionsCompleted: number;
+  sessionsAbandoned: number;
+  crisisAlertsHandled: number;
+  avgSessionDurationMinutes?: number;
+  createdAt: string;
+};
+
+export type CounselorFeedback = {
+  id: string;
+  counselorId: string;
+  sessionId: string;
+  participantId: string;
+  helpfulnessRating?: number; // 1-5
+  responseQualityRating?: number; // 1-5
+  empathyRating?: number; // 1-5
+  overallRating?: number; // 1-5
+  sessionCompletionRating?: number; // 1-5
+  feedbackText?: string;
+  isAnonymous: boolean;
+  createdAt: string;
+  metadata?: Record<string, any>;
+};
+
+export type ResearchMetricType =
+  | 'mood_trend'
+  | 'session_duration'
+  | 'conversation_frequency'
+  | 'emotional_pattern'
+  | 'engagement_level'
+  | 'recovery_progress'
+  | 'support_circle_participation';
+
+export type ResearchMetric = {
+  id: string;
+  studyId: string;
+  metricType: ResearchMetricType;
+  anonymousParticipantId: string;
+  data: Record<string, any>;
+  collectionDate: string;
+  approvedByInstitution: boolean;
+  dataRetentionDays: number;
+  createdAt: string;
+  expiresAt: string;
+};
+
+export type CrisisResourceCategory =
+  | 'coping_strategies'
+  | 'breathing_exercises'
+  | 'stress_reduction'
+  | 'self_care'
+  | 'emergency_contacts'
+  | 'professional_help'
+  | 'peer_support';
+
+export type CrisisResourceContentType =
+  | 'article'
+  | 'guide'
+  | 'exercise'
+  | 'video'
+  | 'audio'
+  | 'infographic';
+
+export type CrisisResourceAccessLevel = 'public' | 'authenticated' | 'crisis_only';
+
+export type CrisisResource = {
+  id: string;
+  title: string;
+  category: CrisisResourceCategory;
+  contentType: CrisisResourceContentType;
+  content: string;
+  summary?: string;
+  tags: string[];
+  isActive: boolean;
+  accessLevel: CrisisResourceAccessLevel;
+  viewCount: number;
+  helpfulCount: number;
+  createdAt: string;
+  updatedAt: string;
+  metadata?: Record<string, any>;
+};
+
+export type RateLimitActionType =
+  | 'message_send'
+  | 'session_start'
+  | 'api_request'
+  | 'login_attempt';
+
+export type RateLimit = {
+  id: string;
+  identifier: string;
+  actionType: RateLimitActionType;
+  windowStart: string;
+  requestCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SpamPatternType =
+  | 'content_hash'
+  | 'ip_address'
+  | 'user_behavior'
+  | 'message_pattern';
+
+export type SpamPatternSeverity = 'low' | 'medium' | 'high';
+
+export type SpamPattern = {
+  id: string;
+  patternType: SpamPatternType;
+  patternValue: string;
+  severity: SpamPatternSeverity;
+  isActive: boolean;
+  detectionCount: number;
+  lastDetectedAt?: string;
+  createdAt: string;
+};
+
+export type EncryptionKey = {
+  id: string;
+  sessionId: string;
+  keyVersion: number;
+  publicKey: string;
+  encryptedPrivateKey: string;
+  algorithm: string;
+  isActive: boolean;
+  createdAt: string;
+  expiresAt?: string;
+};
+
+export type PushSubscription = {
+  id: string;
+  userId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent?: string;
+  isActive: boolean;
+  createdAt: string;
+  lastUsedAt?: string;
+};
+
+export type PlatformMetricPeriod = 'minute' | 'hour' | 'day' | 'week' | 'month';
+
+export type PlatformMetric = {
+  id: string;
+  metricName: string;
+  metricValue: number;
+  metricUnit?: string;
+  collectionPeriod: PlatformMetricPeriod;
+  periodStart: string;
+  periodEnd: string;
+  dimensions?: Record<string, any>;
+  createdAt: string;
+};
+
+// Service Types
+export type CrisisDetectionResult = {
+  detected: boolean;
+  alertType?: CrisisAlertType;
+  severity?: CrisisAlertSeverity;
+  indicators: Record<string, any>;
+};
+
+export type RateLimitResult = {
+  allowed: boolean;
+  remainingRequests?: number;
+  resetTime?: string;
+};
+
+export type SpamCheckResult = {
+  isSpam: boolean;
+  severity?: SpamPatternSeverity;
+  reason?: string;
+};
+
+export type CounselorReputation = {
+  counselorId: string;
+  reputationScore: number; // 0-100
+  totalRatings: number;
+  avgRatings: {
+    helpfulness: number;
+    quality: number;
+    empathy: number;
+    completion: number;
+  };
+  lastCalculated: string;
+};
+
+// API Request/Response Types
+export type CrisisAlertCreateRequest = {
+  sessionId: string;
+  alertType: CrisisAlertType;
+  detectionMethod: string;
+  riskIndicators?: Record<string, any>;
+};
+
+export type CrisisAlertUpdateRequest = {
+  status?: CrisisAlertStatus;
+  assignedCounselorId?: string;
+  resolutionNotes?: string;
+};
+
+export type SupportRoomCreateRequest = {
+  name: string;
+  description: string;
+  category: SupportRoomCategory;
+  maxParticipants?: number;
+  rules?: string;
+  guidelines?: Record<string, any>;
+};
+
+export type CounselorFeedbackSubmitRequest = {
+  sessionId: string;
+  counselorId: string;
+  helpfulnessRating?: number;
+  responseQualityRating?: number;
+  empathyRating?: number;
+  overallRating?: number;
+  sessionCompletionRating?: number;
+  feedbackText?: string;
+};
+
+export type ResearchDataExportRequest = {
+  studyId: string;
+  metricTypes?: ResearchMetricType[];
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  format: 'json' | 'csv';
+};
+
+export type ResearchDataExportResponse = {
+  studyId: string;
+  exportedAt: string;
+  recordCount: number;
+  data: any[] | string; // JSON array or CSV string
+};
+
+export type PlatformHealthStatus = {
+  overall: 'healthy' | 'degraded' | 'unhealthy';
+  components: {
+    database: 'healthy' | 'degraded' | 'unhealthy';
+    api: 'healthy' | 'degraded' | 'unhealthy';
+    realtime: 'healthy' | 'degraded' | 'unhealthy';
+    notifications: 'healthy' | 'degraded' | 'unhealthy';
+  };
+  metrics: {
+    activeUsers: number;
+    activeSessions: number;
+    pendingCrisisAlerts: number;
+    responseTime: number;
+  };
+  lastChecked: string;
+};
