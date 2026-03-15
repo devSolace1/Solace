@@ -57,7 +57,7 @@ export type Report = {
   createdAt: string;
 };
 
-export type AlertType = 'info' | 'success' | 'warning' | 'error';
+export type AlertType = 'info' | 'success' | 'warning' | 'error' | 'destructive';
 
 export type CounselorAvailability = {
   counselorId: string;

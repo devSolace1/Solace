@@ -52,8 +52,10 @@ export class MigrationManager {
       throw new Error(`Migration ${version} not found or has no down function`);
     }
 
+    const down = migration.down;
+
     await adapter.transaction(async (client) => {
-      await migration.down(client);
+      await down(client);
       await this.removeMigration(client, version);
     });
   }

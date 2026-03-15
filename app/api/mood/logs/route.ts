@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@lib/supabaseServer';
+import { verifyUserIdentity } from '../../../../lib/auth-middleware';
 
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get('userId');
   if (!userId) {
     return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+  }
+
+  if (!(await verifyUserIdentity(req, userId))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = getSupabaseServer();
@@ -37,6 +42,10 @@ export async function POST(req: NextRequest) {
 
   if (!userId || !mood) {
     return NextResponse.json({ error: 'Missing userId or mood' }, { status: 400 });
+  }
+
+  if (!(await verifyUserIdentity(req, userId))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = getSupabaseServer();

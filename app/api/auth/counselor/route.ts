@@ -13,32 +13,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database unavailable' }, { status: 500 });
     }
 
-    // Find or create counselor
-    let { data: user, error } = await supabase
+    // Verify counselor exists in users and has a profile
+    const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, role')
+      .select('id')
       .eq('counselor_code', counselorCode)
       .eq('role', 'counselor')
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is no rows
-      throw error;
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Invalid counselor code' }, { status: 401 });
     }
 
-    if (!user) {
-      // Create new counselor
-      const { data: newUser, error: insertError } = await supabase
-        .from('users')
-        .insert({
-          role: 'counselor',
-          counselor_code: counselorCode,
-          anonymous_label: `Counselor ${counselorCode}`,
-        })
-        .select('id')
-        .single();
+    const { data: profile, error: profileError } = await supabase
+      .from('counselor_profiles')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .single();
 
-      if (insertError) throw insertError;
-      user = { id: newUser.id, role: 'counselor' };
+    if (profileError || !profile) {
+      return NextResponse.json({ error: 'Counselor profile not found' }, { status: 401 });
     }
 
     return NextResponse.json({ userId: user.id });

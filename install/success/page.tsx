@@ -2,11 +2,11 @@
 // Post-installation information and next steps
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/Card';
+import { Button } from '@components/ui/Button';
+import { Alert, AlertDescription } from '@components/ui/Alert';
 import { CheckCircle, Copy, ExternalLink, Key, Database, Settings } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@components/ui/use-toast';
 
 export default function InstallSuccessPage() {
   const [adminToken, setAdminToken] = useState<string>('');

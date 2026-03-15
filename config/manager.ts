@@ -271,8 +271,8 @@ export class ConfigManager {
     return require('crypto').randomBytes(32).toString('hex');
   }
 
-  private deepMerge<T>(target: T, source: Partial<T>): T {
-    const result = { ...target };
+  private deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    const result: Record<string, any> = { ...target };
 
     for (const key in source) {
       if (source.hasOwnProperty(key)) {
@@ -280,14 +280,14 @@ export class ConfigManager {
         const targetValue = result[key];
 
         if (this.isObject(sourceValue) && this.isObject(targetValue)) {
-          result[key] = this.deepMerge(targetValue, sourceValue);
+          result[key] = this.deepMerge(targetValue as Record<string, any>, sourceValue as Record<string, any>);
         } else {
-          result[key] = sourceValue as T[Extract<keyof T, string>];
+          result[key] = sourceValue;
         }
       }
     }
 
-    return result;
+    return result as T;
   }
 
   private isObject(item: any): item is Record<string, any> {

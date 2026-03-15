@@ -10,6 +10,24 @@ const installer = {
 };
 
 export async function POST(request: NextRequest) {
+  // Basic admin token check (replace with proper auth)
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const token = authHeader.substring(7);
+  const expectedToken = process.env.ADMIN_INSTALL_TOKEN;
+
+  if (!expectedToken) {
+    console.error('ADMIN_INSTALL_TOKEN is not set');
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
+
+  if (token !== expectedToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { dbConfig, platformConfig, adminEmail, generateAdminToken } = await request.json();
 

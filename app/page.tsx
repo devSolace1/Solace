@@ -1,3 +1,7 @@
+'use client';
+
+'use client';
+
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -65,10 +69,14 @@ export default function LandingPage() {
             </motion.p>
 
             <motion.div variants={fadeInUp} className="mt-10 flex items-center justify-center gap-x-6">
-              <Button size="lg" className="px-8">
-                Start Your Journey
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+              <Link href="/chat">
+                <Button asChild size="lg" className="px-8">
+                  <a>
+                    Start Your Journey
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </Link>
               <Link href="#how-it-works" className="text-sm font-semibold leading-6 text-gray-900">
                 Learn more <span aria-hidden="true">→</span>
               </Link>

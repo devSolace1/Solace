@@ -2,14 +2,14 @@
 // Web-based installation interface
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@components/ui/Card';
+import { Button } from '@components/ui/Button';
+import { Input } from '@components/ui/Input';
+import { Label } from '@components/ui/Label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/Select';
+import { Checkbox } from '@components/ui/Checkbox';
+import { Progress } from '@components/ui/Progress';
+import { Alert, AlertDescription } from '@components/ui/Alert';
 import { CheckCircle, AlertCircle, Database, Settings, User, Rocket } from 'lucide-react';
 
 interface InstallStep {

@@ -86,8 +86,6 @@ When emotions feel overwhelming, grounding techniques can help bring you back to
 **Name 1 thing you can taste**
 
 ## Physical Grounding
-- Hold ice cubes in your hands
-- Take a cold shower
 - Stomp your feet on the ground
 - Drink a glass of water slowly
 

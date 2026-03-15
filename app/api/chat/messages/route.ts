@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServer } from '@lib/supabaseServer';
+import { verifyUserIdentity } from '../../../../lib/auth-middleware';
 
 const DATING_KEYWORDS = [
   'date',
@@ -20,8 +21,13 @@ function containsDatingKeyword(text: string) {
 
 export async function GET(req: NextRequest) {
   const sessionId = req.nextUrl.searchParams.get('sessionId');
-  if (!sessionId) {
-    return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+  const userId = req.nextUrl.searchParams.get('userId');
+  if (!sessionId || !userId) {
+    return NextResponse.json({ error: 'Missing sessionId or userId' }, { status: 400 });
+  }
+
+  if (!(await verifyUserIdentity(req, userId))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = getSupabaseServer();
@@ -52,6 +58,10 @@ export async function POST(req: NextRequest) {
 
   if (!sessionId || !senderId || !content) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+
+  if (!(await verifyUserIdentity(req, senderId))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const supabase = getSupabaseServer();

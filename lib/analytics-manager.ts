@@ -162,7 +162,7 @@ export class AnalyticsManager {
       SELECT COUNT(*) as count FROM active_sessions
       WHERE last_activity > ?
     `, [new Date(Date.now() - 5 * 60 * 1000).toISOString()]);
-    return result[0]?.count || 0;
+    return (result.rows[0] as any)?.count || 0;
   }
 
   private async getActiveCounselorCount(): Promise<number> {
@@ -171,7 +171,7 @@ export class AnalyticsManager {
       SELECT COUNT(*) as count FROM counselor_profiles
       WHERE availability = true AND last_active > ?
     `, [new Date(Date.now() - 10 * 60 * 1000).toISOString()]);
-    return result[0]?.count || 0;
+    return (result.rows[0] as any)?.count || 0;
   }
 
   private async getTotalSessions(): Promise<number> {
@@ -180,7 +180,7 @@ export class AnalyticsManager {
       SELECT COUNT(*) as count FROM chat_sessions
       WHERE created_at > ?
     `, [new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()]);
-    return result[0]?.count || 0;
+    return (result.rows[0] as any)?.count || 0;
   }
 
   private async getAverageSessionDuration(): Promise<number> {
@@ -189,7 +189,7 @@ export class AnalyticsManager {
       SELECT AVG(duration_minutes) as avg_duration FROM chat_sessions
       WHERE created_at > ? AND duration_minutes IS NOT NULL
     `, [new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()]);
-    return result[0]?.avg_duration || 0;
+    return (result.rows[0] as any)?.avg_duration || 0;
   }
 
   private async getPanicAlertsCount(): Promise<number> {
@@ -198,7 +198,7 @@ export class AnalyticsManager {
       SELECT COUNT(*) as count FROM panic_alerts
       WHERE created_at > ?
     `, [new Date(Date.now() - 60 * 60 * 1000).toISOString()]);
-    return result[0]?.count || 0;
+    return (result.rows[0] as any)?.count || 0;
   }
 
   private async getMoodLogsCount(): Promise<number> {
@@ -207,7 +207,7 @@ export class AnalyticsManager {
       SELECT COUNT(*) as count FROM mood_logs
       WHERE created_at > ?
     `, [new Date(Date.now() - 60 * 60 * 1000).toISOString()]);
-    return result[0]?.count || 0;
+    return (result.rows[0] as any)?.count || 0;
   }
 
   private async getRoomMessagesCount(): Promise<number> {
@@ -216,7 +216,7 @@ export class AnalyticsManager {
       SELECT COUNT(*) as count FROM room_messages
       WHERE created_at > ?
     `, [new Date(Date.now() - 60 * 60 * 1000).toISOString()]);
-    return result[0]?.count || 0;
+    return (result.rows[0] as any)?.count || 0;
   }
 
   private async getAIInteractionsCount(): Promise<number> {
@@ -225,7 +225,7 @@ export class AnalyticsManager {
       SELECT COUNT(*) as count FROM ai_interactions
       WHERE created_at > ?
     `, [new Date(Date.now() - 60 * 60 * 1000).toISOString()]);
-    return result[0]?.count || 0;
+    return (result.rows[0] as any)?.count || 0;
   }
 
   private async storeActivityMetrics(metrics: ActivityMetrics): Promise<void> {
@@ -305,10 +305,10 @@ export class AnalyticsManager {
     const dropOff = await this.calculateDropOffPoints(startDate);
 
     return {
-      totalUsers: totalUsersResult[0]?.count || 0,
-      newUsersToday: newUsersResult[0]?.count || 0,
-      returningUsers: returningUsersResult[0]?.count || 0,
-      averageSessionsPerUser: avgSessionsResult[0]?.avg_sessions || 0,
+      totalUsers: (totalUsersResult.rows[0] as any)?.count || 0,
+      newUsersToday: (newUsersResult.rows[0] as any)?.count || 0,
+      returningUsers: (returningUsersResult.rows[0] as any)?.count || 0,
+      averageSessionsPerUser: (avgSessionsResult.rows[0] as any)?.avg_sessions || 0,
       userRetention: retention,
       dropOffPoints: dropOff
     };
@@ -326,18 +326,18 @@ export class AnalyticsManager {
         WHERE created_at >= ? AND created_at < ?
       `, [cohortStart.toISOString(), cohortEnd.toISOString()]);
 
-      if (cohortUsers.length === 0) return 0;
+      if (cohortUsers.rows.length === 0) return 0;
 
       const retainedUsers = await adapter.query(`
         SELECT COUNT(DISTINCT user_id) as count FROM user_activities
-        WHERE user_id IN (${cohortUsers.map(u => '?').join(',')})
+        WHERE user_id IN (${cohortUsers.rows.map(u => '?').join(',')})
         AND created_at >= ?
       `, [
-        ...cohortUsers.map(u => u.user_id),
+        ...cohortUsers.rows.map(u => u.user_id),
         new Date(cohortEnd.getTime() + days * 24 * 60 * 60 * 1000).toISOString()
       ]);
 
-      return (retainedUsers[0]?.count || 0) / cohortUsers.length;
+      return (retainedUsers.rows[0]?.count || 0) / cohortUsers.rows.length;
     };
 
     return {
@@ -387,13 +387,13 @@ export class AnalyticsManager {
       SELECT COUNT(*) as count FROM users WHERE created_at >= ?
     `, [startDate.toISOString()]);
 
-    const total = totalUsers[0]?.count || 1; // Avoid division by zero
+    const total = totalUsers.rows[0]?.count || 1; // Avoid division by zero
 
     return {
-      registration: (registeredOnly[0]?.count || 0) / total,
-      firstChat: (chatOnly[0]?.count || 0) / total,
+      registration: (registeredOnly.rows[0]?.count || 0) / total,
+      firstChat: (chatOnly.rows[0]?.count || 0) / total,
       firstMoodLog: 0, // Would need more complex query
-      week1: (week1DropOff[0]?.count || 0) / total
+      week1: (week1DropOff.rows[0]?.count || 0) / total
     };
   }
 
@@ -417,7 +417,7 @@ export class AnalyticsManager {
     `, [startDate.toISOString()]);
 
     const moodDistribution: { [key: number]: number } = {};
-    moodDistResult.forEach((row: any) => {
+    moodDistResult.rows.forEach((row: any) => {
       moodDistribution[row.mood_level] = row.count;
     });
 
@@ -428,7 +428,7 @@ export class AnalyticsManager {
     `, [startDate.toISOString()]);
 
     const days = timeRange === 'day' ? 1 : timeRange === 'week' ? 7 : 30;
-    const panicFrequency = (panicResult[0]?.count || 0) / days;
+    const panicFrequency = (panicResult.rows[0]?.count || 0) / days;
 
     // Recovery rate (users who improved mood after intervention)
     const recoveryRate = await this.calculateRecoveryRate(startDate);
@@ -446,12 +446,12 @@ export class AnalyticsManager {
     const counselorRate = await this.calculateCounselorInterventionRate(startDate);
 
     return {
-      averageMoodScore: avgMoodResult[0]?.avg_mood || 0,
+      averageMoodScore: avgMoodResult.rows[0]?.avg_mood || 0,
       moodDistribution,
       panicFrequency,
       recoveryRate,
       crisisInterventionSuccess: crisisSuccess,
-      aiAssistanceUsage: aiUsageResult[0]?.count || 0,
+      aiAssistanceUsage: aiUsageResult.rows[0]?.count || 0,
       counselorInterventionRate: counselorRate
     };
   }
@@ -477,7 +477,7 @@ export class AnalyticsManager {
       SELECT COUNT(DISTINCT user_id) as count FROM mood_logs WHERE created_at >= ?
     `, [startDate.toISOString()]);
 
-    return (result[0]?.improved_users || 0) / (totalUsers[0]?.count || 1);
+    return (result.rows[0]?.improved_users || 0) / (totalUsers.rows[0]?.count || 1);
   }
 
   private async calculateCrisisInterventionSuccess(startDate: Date): Promise<number> {
@@ -492,7 +492,7 @@ export class AnalyticsManager {
       WHERE created_at >= ?
     `, [startDate.toISOString()]);
 
-    return result[0]?.total ? (result[0].resolved / result[0].total) : 0;
+    return result.rows[0]?.total ? (result.rows[0].resolved / result.rows[0].total) : 0;
   }
 
   private async calculateCounselorInterventionRate(startDate: Date): Promise<number> {
@@ -507,7 +507,7 @@ export class AnalyticsManager {
       WHERE created_at >= ?
     `, [startDate.toISOString()]);
 
-    return result[0]?.total ? (result[0].with_counselor / result[0].total) : 0;
+    return result.rows[0]?.total ? (result.rows[0].with_counselor / result.rows[0].total) : 0;
   }
 
   // Platform Performance Analytics
@@ -546,7 +546,7 @@ export class AnalyticsManager {
     `, [last24h.toISOString()]);
 
     const loadDistribution: { [nodeId: string]: number } = {};
-    loadDistResult.forEach((row: any) => {
+    loadDistResult.rows.forEach((row: any) => {
       loadDistribution[row.node_id] = row.avg_load;
     });
 
@@ -560,12 +560,12 @@ export class AnalyticsManager {
     `, [last24h.toISOString()]);
 
     return {
-      averageResponseTime: responseTimeResult[0]?.avg_response || 0,
-      systemUptime: uptimeResult[0]?.uptime || 100,
-      errorRate: errorResult[0]?.error_rate || 0,
+      averageResponseTime: responseTimeResult.rows[0]?.avg_response || 0,
+      systemUptime: uptimeResult.rows[0]?.uptime || 100,
+      errorRate: errorResult.rows[0]?.error_rate || 0,
       loadDistribution,
       federationHealth,
-      dataSyncLatency: syncLatencyResult[0]?.avg_latency || 0
+      dataSyncLatency: syncLatencyResult.rows[0]?.avg_latency || 0
     };
   }
 
@@ -684,12 +684,13 @@ export class AnalyticsManager {
   }
 
   // Helper methods
-  private getTimeRangeMs(timeRange: 'day' | 'week' | 'month'): number {
+  private getTimeRangeMs(timeRange: 'hour' | 'day' | 'week' | 'month'): number {
     switch (timeRange) {
+      case 'hour': return 60 * 60 * 1000;
       case 'day': return 24 * 60 * 60 * 1000;
       case 'week': return 7 * 24 * 60 * 60 * 1000;
       case 'month': return 30 * 24 * 60 * 60 * 1000;
-      default: return 7 * 24 * 60 * 60 * 1000;
+      default: return 24 * 60 * 60 * 1000;
     }
   }
 
