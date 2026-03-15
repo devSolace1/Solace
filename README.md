@@ -119,6 +119,75 @@ Users can write private emotional notes to track their healing journey.
 
 A prominent **panic button** is available if a user suddenly experiences intense emotional distress.
 
+---
+
+## 🚀 Getting Started (Local Development)
+
+### 1) Install dependencies
+
+```bash
+npm install
+```
+
+### 2) Configure environment variables
+
+Create a `.env.local` file with the following values (example):
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xyzcompany.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+> **Security:** Never commit `.env.local` to source control. The service role key provides full access to your Supabase project.
+
+### 3) Prepare the database schema
+
+Run the SQL script in `db/schema.sql` against your Supabase database, or use Supabase migrations.
+
+### 4) Run the development server
+
+```bash
+npm run dev
+```
+
+Then open http://localhost:3000 in your browser.
+
+---
+
+## 📦 Deployment
+
+This project is designed to deploy on **Vercel**.
+
+1. Create a new project on Vercel and connect this repository.
+2. Set the same environment variables in Vercel.
+3. Deploy.
+
+---
+
+## 🧩 Project Structure (Overview)
+
+- `/app` - Next.js App Router pages and API routes.
+- `/components` - UI components separated by domain.
+- `/lib` - Client/server helpers, Supabase clients, session management.
+- `/db` - Database schema & migration scripts.
+
+---
+
+## 🔐 Security & Privacy Notes
+
+- No personal identifiers are requested.
+- Sessions are stored locally and tied to an anonymous user ID.
+- Recovery keys allow restoring sessions without exposing identity.
+- Messages and journals are stored in Postgres and can be encrypted in the future.
+
+---
+
+## 🎓 Research & Insights
+
+The platform stores anonymized behavioral data (mood trends, match history, session patterns) for potential academic research, while keeping individual identities hidden.
+
+
 Pressing the button will prioritize the user and connect them to an available counselor immediately.
 
 ---
@@ -229,6 +298,54 @@ Sometimes they don't need a diagnosis.
 They just need someone who listens.
 
 Solace exists to make sure that no one has to face their emotions alone.
+
+---
+
+## 🚀 Deployment
+
+### Prerequisites
+
+- Node.js 18+
+- Supabase account
+- Vercel account (recommended)
+
+### Environment Variables
+
+Create a `.env.local` file with:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
+
+### Database Setup
+
+1. Create a new Supabase project
+2. Run the schema from `db/schema.sql` in the SQL editor
+3. Update your environment variables
+
+### Deploy to Vercel
+
+1. Connect your GitHub repository to Vercel
+2. Add environment variables in Vercel dashboard
+3. Deploy
+
+### Local Development
+
+```bash
+npm install
+npm run dev
+```
+
+### Admin Setup
+
+To create admin/moderator accounts:
+
+1. Insert into users table with role='moderator'
+2. They can log in via `/counselor` with their user ID (for now, or add admin login later)
+
+Counselors log in via `/counselor` with their counselor_code.
 
 ---
 
