@@ -1,49 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServer } from '../../../lib/supabaseServer';
+// Health check endpoint
+// Basic health check for load balancers and monitoring
+
+import { NextResponse } from 'next/server';
+import { db } from '../../../database/adapter';
+import { configManager } from '../../../config/manager';
 
 export async function GET() {
-  const supabase = getSupabaseServer();
-
   try {
-    // Basic health checks
-    const checks = {
-      timestamp: new Date().toISOString(),
-      status: 'healthy',
-      checks: {
-        database: false,
-        api: true
-      }
-    };
+    const config = configManager.getConfig();
 
-    // Check database connectivity
-    if (supabase) {
-      try {
-        const { error } = await supabase.from('users').select('count').limit(1).single();
-        checks.checks.database = !error;
-      } catch (dbError) {
-        checks.checks.database = false;
-        checks.status = 'degraded';
-      }
-    } else {
-      checks.checks.database = false;
-      checks.status = 'unhealthy';
+    // Check database health
+    let databaseHealthy = false;
+    try {
+      databaseHealthy = await db.healthCheck();
+    } catch (error) {
+      console.error('Database health check failed:', error);
     }
 
-    // If database is down, mark overall status as unhealthy
-    if (!checks.checks.database) {
-      checks.status = 'unhealthy';
-    }
+    // Check if platform is configured
+    const platformConfigured = !!(config.platform && config.platform.name);
 
-    const statusCode = checks.status === 'healthy' ? 200 :
-                      checks.status === 'degraded' ? 200 : 503;
+    // Check if admin token exists
+    const adminConfigured = !!(config.platform && config.platform.adminToken);
 
-    return NextResponse.json(checks, { status: statusCode });
-  } catch (error) {
-    console.error('Health check error:', error);
+    const isHealthy = databaseHealthy && platformConfigured;
+
+    const status = isHealthy ? 'healthy' : 'unhealthy';
+
     return NextResponse.json({
+      status,
       timestamp: new Date().toISOString(),
-      status: 'unhealthy',
-      error: 'Health check failed'
-    }, { status: 503 });
+      version: '7.0.0',
+      checks: {
+        database: databaseHealthy ? 'healthy' : 'unhealthy',
+        platform: platformConfigured ? 'configured' : 'not_configured',
+        admin: adminConfigured ? 'configured' : 'not_configured'
+      }
+    }, {
+      status: isHealthy ? 200 : 503
+    });
+  } catch (error) {
+    return NextResponse.json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, {
+      status: 500
+    });
   }
 }

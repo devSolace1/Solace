@@ -34,14 +34,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine alert type and severity if not provided
-    let finalAlertType = alertType;
-    let severity = 'medium';
+    let finalAlertType: string | undefined = alertType;
+    let severity: string = 'medium';
 
     if (!finalAlertType && riskIndicators?.message) {
       const detection = CrisisDetectionService.detectCrisis(riskIndicators.message);
       if (detection.detected) {
         finalAlertType = detection.alertType;
-        severity = detection.severity;
+        severity = detection.severity || 'medium';
       }
     }
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     // Check if escalation is needed
     const shouldEscalate = CrisisDetectionService.shouldEscalate({
       detected: true,
-      alertType: finalAlertType,
+      alertType: finalAlertType as any,
       severity: severity as any,
       indicators: riskIndicators || {}
     });

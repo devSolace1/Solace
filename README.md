@@ -1,12 +1,26 @@
-# Solace
+# Solace V7 - Self-Hosted Mental Health Support Platform
 
-A free and anonymous emotional support platform.
+A free and anonymous emotional support platform that can be deployed anywhere.
 
-Solace is a safe place where people can talk, breathe, and heal without fear of judgment, identity exposure, or financial barriers.
+## 🚀 What's New in V7
 
-Our mission is simple:
+Solace V7 introduces **full portability and self-hosting capabilities**, removing all dependencies on cloud providers like Supabase. You can now deploy Solace on:
 
-Everyone deserves someone who listens.
+- **VPS servers** (DigitalOcean, Linode, Vultr)
+- **University servers**
+- **Node.js hosting providers**
+- **Docker containers**
+- **Local development environments**
+
+### Key V7 Features
+
+- ✅ **Database Abstraction**: Support for PostgreSQL and MySQL
+- ✅ **Internal Realtime Server**: WebSocket-based chat without external dependencies
+- ✅ **Automated Installation**: Web-based and CLI setup wizards
+- ✅ **Docker Deployment**: Complete containerized deployment
+- ✅ **Backup & Restore**: Automated database and configuration backups
+- ✅ **Health Monitoring**: Built-in health checks and status endpoints
+- ✅ **Configuration Management**: Dynamic environment-based configuration
 
 ---
 
@@ -16,37 +30,363 @@ Mental health support should not be a luxury.
 
 Solace aims to create a global platform where anyone can receive emotional support anonymously, safely, and freely.
 
-The platform initially focuses on helping people experiencing:
-
-- heartbreak
-- loneliness
-- emotional distress
-- relationship problems
-
-But in the long term, Solace aims to support a wide range of mental health challenges.
-
 ---
 
 ## ✨ Core Principles
 
-Solace is built on four main principles.
-
 ### 1. Free Access
+Most emotional support platforms are expensive. Solace will always prioritize **free access**.
 
-Most emotional support platforms are expensive.
+### 2. Anonymous by Design
+Solace does not require real names, phone numbers, personal identity, or social media accounts.
 
-Solace will always prioritize **free access** so that people who cannot afford therapy can still talk to someone.
+### 3. Self-Hosted & Portable
+V7 makes Solace completely self-hostable with no external service dependencies.
+
+### 4. Open Source
+Solace is open source and community-driven.
 
 ---
 
-### 2. Anonymous by Design
+## 📋 Prerequisites
 
-Solace does not require:
+Before deploying Solace V7, ensure you have:
 
-- real names
-- phone numbers
-- personal identity
-- social media accounts
+- **Node.js 18.0.0 or higher**
+- **Database server** (PostgreSQL 12+ or MySQL 8.0+)
+- **4GB RAM** (recommended)
+- **2GB storage** (minimum)
+
+---
+
+## 🚀 Quick Start Deployment
+
+### Option 1: Docker Deployment (Recommended)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-org/solace.git
+   cd solace
+   ```
+
+2. **Start with Docker Compose**
+   ```bash
+   # Copy environment template
+   cp .env.example .env
+
+   # Edit configuration
+   nano .env
+
+   # Start all services
+   docker-compose up -d
+   ```
+
+3. **Run the installer**
+   ```bash
+   # Access the web installer
+   open http://localhost:3001/install
+
+   # Or use CLI installer
+   npm run setup
+   ```
+
+4. **Access your platform**
+   ```bash
+   open http://localhost:3000
+   ```
+
+### Option 2: Manual Node.js Deployment
+
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your settings
+   ```
+
+3. **Run database migrations**
+   ```bash
+   npm run db:migrate
+   ```
+
+4. **Start the application**
+   ```bash
+   npm run dev  # Development
+   npm run build && npm start  # Production
+   ```
+
+### Option 3: VPS Deployment
+
+For production VPS deployment, see our [VPS Deployment Guide](docs/vps-deployment.md).
+
+---
+
+## ⚙️ Configuration
+
+Solace V7 uses environment variables for configuration. Copy `.env.example` to `.env` and configure:
+
+### Database Configuration
+```env
+# PostgreSQL (default)
+DATABASE_TYPE=postgresql
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=solace
+DATABASE_USERNAME=solace
+DATABASE_PASSWORD=your_password
+
+# MySQL (alternative)
+DATABASE_TYPE=mysql
+DATABASE_HOST=localhost
+DATABASE_PORT=3306
+DATABASE_NAME=solace
+DATABASE_USERNAME=solace
+DATABASE_PASSWORD=your_password
+```
+
+### Platform Configuration
+```env
+PLATFORM_NAME=Solace
+PLATFORM_VERSION=7.0.0
+ADMIN_TOKEN=your_generated_admin_token
+
+# Feature flags
+FEATURE_ANONYMOUS_CHAT=true
+FEATURE_COUNSELOR_MATCHING=true
+FEATURE_PANIC_BUTTON=true
+FEATURE_MOOD_TRACKING=true
+FEATURE_SUPPORT_CIRCLES=true
+FEATURE_ANALYTICS=true
+```
+
+### Server Configuration
+```env
+NODE_ENV=production
+PORT=3000
+
+# Realtime server
+REALTIME_PORT=8080
+REALTIME_HOST=localhost
+```
+
+---
+
+## 🗄️ Database Setup
+
+### PostgreSQL Setup
+```bash
+# Create database and user
+sudo -u postgres psql
+CREATE DATABASE solace;
+CREATE USER solace WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE solace TO solace;
+\q
+```
+
+### MySQL Setup
+```bash
+# Create database and user
+mysql -u root -p
+CREATE DATABASE solace;
+CREATE USER 'solace'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON solace.* TO 'solace'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+---
+
+## 🔧 Management Commands
+
+### Backup & Restore
+```bash
+# Create backup
+npm run backup create
+
+# Create compressed backup
+npm run backup create --compress
+
+# List backups
+npm run backup list
+
+# Restore backup
+npm run backup restore backups/solace-backup-2024-01-01
+
+# Cleanup old backups (keep 30 days)
+npm run backup cleanup
+```
+
+### Health Checks
+```bash
+# Quick health check
+curl http://localhost:3000/api/health
+
+# Detailed status
+curl http://localhost:3000/api/status
+
+# Run from npm
+npm run health
+```
+
+### Database Operations
+```bash
+# Run migrations
+npm run db:migrate
+
+# Check database health
+npm run db:health
+```
+
+---
+
+## 🐳 Docker Commands
+
+```bash
+# Build and start
+docker-compose up -d
+
+# View logs
+docker-compose logs -f solace
+
+# Stop services
+docker-compose down
+
+# Rebuild after changes
+docker-compose up -d --build
+
+# Scale services
+docker-compose up -d --scale solace=3
+```
+
+---
+
+## 🔒 Security Considerations
+
+### Production Deployment
+- Use HTTPS with SSL certificates
+- Set strong database passwords
+- Configure firewall rules
+- Use environment variables for secrets
+- Regularly update dependencies
+- Enable database backups
+
+### Admin Access
+- Generate strong admin tokens
+- Use HTTPS for admin panel access
+- Regularly rotate admin tokens
+- Monitor admin access logs
+
+---
+
+## 📊 Monitoring & Maintenance
+
+### Health Endpoints
+- `/api/health` - Basic health check
+- `/api/status` - Detailed system status
+
+### Logs
+- Application logs: `logs/app.log`
+- Database logs: `logs/database.log`
+- Backup logs: `logs/backup.log`
+
+### Automated Tasks
+```bash
+# Daily backup (add to cron)
+0 2 * * * /path/to/solace/scripts/backup.js create --compress
+
+# Log rotation (add to cron)
+0 3 * * * /path/to/solace/scripts/rotate-logs.sh
+
+# Health monitoring
+*/5 * * * * curl -f http://localhost:3000/api/health || systemctl restart solace
+```
+
+---
+
+## 🆘 Troubleshooting
+
+### Common Issues
+
+**Database Connection Failed**
+```bash
+# Check database service
+sudo systemctl status postgresql
+sudo systemctl status mysql
+
+# Test connection
+psql -h localhost -U solace -d solace
+mysql -h localhost -u solace -p solace
+```
+
+**Port Already in Use**
+```bash
+# Find process using port
+lsof -i :3000
+lsof -i :8080
+
+# Kill process
+kill -9 <PID>
+```
+
+**Permission Errors**
+```bash
+# Fix permissions
+sudo chown -R $USER:$USER /path/to/solace
+chmod +x scripts/*.sh
+```
+
+### Getting Help
+- Check [Troubleshooting Guide](docs/troubleshooting.md)
+- View logs in `logs/` directory
+- Use health endpoints for diagnostics
+- Check GitHub Issues for known problems
+
+---
+
+## 📚 Documentation
+
+- [Installation Guide](docs/installation.md)
+- [Configuration Reference](docs/configuration.md)
+- [API Documentation](docs/api.md)
+- [Deployment Guides](docs/deployments/)
+  - [VPS Deployment](docs/deployments/vps.md)
+  - [Docker Deployment](docs/deployments/docker.md)
+  - [Cloud Deployment](docs/deployments/cloud.md)
+- [Backup & Recovery](docs/backup.md)
+- [Troubleshooting](docs/troubleshooting.md)
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Setup
+```bash
+git clone https://github.com/your-org/solace.git
+cd solace
+npm install
+cp .env.example .env
+npm run dev
+```
+
+---
+
+## 📄 License
+
+Solace is open source software licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+Solace was built with the mission to make mental health support accessible to everyone. We thank all our contributors and the open source community for making this possible.
+
+**Everyone deserves someone who listens.**
 
 Users can speak freely without fear of being judged or exposed.
 

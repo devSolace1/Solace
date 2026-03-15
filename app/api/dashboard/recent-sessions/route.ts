@@ -24,15 +24,15 @@ export async function GET(request: NextRequest) {
       sessions.map(async (session) => {
         const intelligence = await intelligenceService.analyzeSession(session.id);
 
-        const createdAt = session.created_at ? new Date(session.created_at) : new Date();
+        const createdAt = session.started_at ? new Date(session.started_at) : new Date();
         const endedAt = session.ended_at ? new Date(session.ended_at) : new Date();
         const durationMinutes = (endedAt.getTime() - createdAt.getTime()) / (1000 * 60);
 
         return {
           id: session.id,
           status: session.status,
-          createdAt: session.created_at,
-          messageCount: session.messageCount || 0,
+          createdAt: session.started_at,
+          messageCount: session.message_count || 0,
           durationMinutes: Math.max(0, durationMinutes),
           emotionalIntensity: intelligence.fatigueIndicators.emotionalIntensity,
           continuityScore: intelligence.continuityScore

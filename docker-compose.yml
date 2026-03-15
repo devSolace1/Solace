@@ -1,0 +1,123 @@
+# Solace V7 Docker Compose
+# Complete deployment stack with database and application
+
+version: '3.8'
+
+services:
+  # Solace Application
+  solace:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: solace-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./backups:/app/backups
+    networks:
+      - solace-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL Database (default)
+  db:
+    image: postgres:15-alpine
+    container_name: solace-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: solace
+      POSTGRES_USER: solace
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - solace-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U solace -d solace"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MySQL Database (alternative)
+  # Uncomment this section and comment out the PostgreSQL section above if using MySQL
+  # db:
+  #   image: mysql:8.0
+  #   container_name: solace-db
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_DATABASE: solace
+  #     MYSQL_USER: solace
+  #     MYSQL_PASSWORD: ${DATABASE_PASSWORD:-changeme}
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #     - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+  #   ports:
+  #     - "3306:3306"
+  #   networks:
+  #     - solace-network
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   command: --default-authentication-plugin=mysql_native_password
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: solace-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - solace-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: solace-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - solace
+    networks:
+      - solace-network
+
+volumes:
+  postgres_data:
+  mysql_data:
+  redis_data:
+
+networks:
+  solace-network:
+    driver: bridge
