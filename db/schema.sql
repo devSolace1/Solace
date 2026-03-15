@@ -14,7 +14,11 @@ CREATE TABLE IF NOT EXISTS users (
   created_at timestamptz NOT NULL DEFAULT now(),
   last_seen_at timestamptz NOT NULL DEFAULT now(),
   is_active boolean NOT NULL DEFAULT true,
-  metadata jsonb DEFAULT '{}'::jsonb
+  metadata jsonb DEFAULT '{}'::jsonb,
+  -- V8 additions
+  migrated_from text, -- Node ID if migrated
+  migrated_at timestamptz,
+  profile_data jsonb DEFAULT '{}'::jsonb -- Anonymous profile data
 );
 
 -- Optional recovery keys (stored hashed) for account restoration without PII
@@ -46,6 +50,307 @@ CREATE TABLE IF NOT EXISTS messages (
   metadata jsonb DEFAULT '{}'::jsonb,
   is_flagged boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- V8 Emotional Reasoning Engine Tables
+CREATE TABLE IF NOT EXISTS emotional_states (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  state text NOT NULL CHECK (state IN ('stable', 'recovering', 'distressed', 'high_risk')),
+  confidence_score decimal(3,2) NOT NULL CHECK (confidence_score >= 0 AND confidence_score <= 1),
+  signals jsonb NOT NULL DEFAULT '{}'::jsonb, -- mood, chat_sentiment, panic_usage, etc.
+  created_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL DEFAULT (now() + interval '24 hours')
+);
+
+-- V8 Counselor Routing Tables
+CREATE TABLE IF NOT EXISTS counselor_profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  availability boolean NOT NULL DEFAULT false,
+  specializations text[] DEFAULT '{}',
+  timezone text NOT NULL,
+  experience_level text NOT NULL CHECK (experience_level IN ('beginner', 'intermediate', 'expert')),
+  languages text[] DEFAULT '{"english"}',
+  current_load integer NOT NULL DEFAULT 0,
+  max_load integer NOT NULL DEFAULT 3,
+  last_active timestamptz NOT NULL DEFAULT now(),
+  performance_score decimal(3,2) DEFAULT 1.0,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS routing_history (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  participant_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  counselor_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  match_score decimal(3,2),
+  match_reason text,
+  assigned_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz,
+  outcome text CHECK (outcome IN ('completed', 'transferred', 'abandoned'))
+);
+
+-- V8 Community Network Tables
+CREATE TABLE IF NOT EXISTS community_rooms (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  description text,
+  topic text NOT NULL,
+  is_private boolean NOT NULL DEFAULT false,
+  moderator_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  guidelines text,
+  max_participants integer DEFAULT 50,
+  active_participants integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  is_active boolean NOT NULL DEFAULT true,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS room_participants (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id uuid NOT NULL REFERENCES community_rooms(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role text NOT NULL CHECK (role IN ('member', 'moderator')) DEFAULT 'member',
+  joined_at timestamptz NOT NULL DEFAULT now(),
+  last_activity timestamptz NOT NULL DEFAULT now(),
+  is_active boolean NOT NULL DEFAULT true,
+  UNIQUE(room_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS room_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id uuid NOT NULL REFERENCES community_rooms(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content text NOT NULL,
+  message_type text NOT NULL CHECK (message_type IN ('text', 'reaction', 'system')) DEFAULT 'text',
+  reply_to uuid REFERENCES room_messages(id) ON DELETE SET NULL,
+  is_flagged boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- V8 AI Assistant Tables
+CREATE TABLE IF NOT EXISTS ai_interactions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  interaction_type text NOT NULL CHECK (interaction_type IN ('coping_strategy', 'breathing_exercise', 'resource', 'crisis_detection')),
+  prompt text,
+  response text NOT NULL,
+  helpful_rating integer CHECK (helpful_rating >= 1 AND helpful_rating <= 5),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- V8 Recovery Tracking Tables
+CREATE TABLE IF NOT EXISTS recovery_metrics (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recovery_score decimal(3,2) NOT NULL CHECK (recovery_score >= 0 AND recovery_score <= 1),
+  stability_trend decimal(3,2), -- -1 to 1 (worsening to improving)
+  activity_frequency integer NOT NULL DEFAULT 0, -- sessions per week
+  milestones jsonb DEFAULT '[]'::jsonb, -- achieved milestones
+  insights jsonb DEFAULT '{}'::jsonb, -- personalized insights
+  calculated_at timestamptz NOT NULL DEFAULT now(),
+  next_check timestamptz NOT NULL DEFAULT (now() + interval '7 days')
+);
+
+CREATE TABLE IF NOT EXISTS recovery_milestones (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  milestone_type text NOT NULL,
+  description text NOT NULL,
+  achieved_at timestamptz NOT NULL DEFAULT now(),
+  significance_score integer NOT NULL DEFAULT 1 CHECK (significance_score >= 1 AND significance_score <= 10)
+);
+
+-- V8 Resilience Manager Tables
+CREATE TABLE IF NOT EXISTS offline_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type text NOT NULL CHECK (type IN ('chat', 'mood', 'panic', 'room_message')),
+  content jsonb NOT NULL,
+  timestamp timestamptz NOT NULL,
+  retry_count integer NOT NULL DEFAULT 0,
+  priority text NOT NULL CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS fallback_queue (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  type text NOT NULL,
+  data jsonb NOT NULL,
+  priority text NOT NULL CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
+  status text NOT NULL CHECK (status IN ('pending', 'processing', 'completed', 'failed')) DEFAULT 'pending',
+  retry_count integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz,
+  error text
+);
+
+-- V8 Distributed Manager Tables
+CREATE TABLE IF NOT EXISTS remote_counselors (
+  id uuid PRIMARY KEY,
+  node_id text NOT NULL,
+  availability boolean NOT NULL DEFAULT false,
+  specializations text[],
+  timezone text NOT NULL,
+  experience_level text NOT NULL,
+  last_updated timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS federation_messages (
+  id text PRIMARY KEY,
+  from_node text NOT NULL,
+  to_node text NOT NULL,
+  type text NOT NULL,
+  payload jsonb NOT NULL,
+  timestamp timestamptz NOT NULL,
+  priority text NOT NULL CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
+  status text NOT NULL CHECK (status IN ('pending', 'processed', 'failed')) DEFAULT 'pending',
+  processed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- V8 Analytics Manager Tables
+CREATE TABLE IF NOT EXISTS activity_metrics (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  timestamp timestamptz NOT NULL,
+  node_id text NOT NULL,
+  active_users integer NOT NULL DEFAULT 0,
+  active_counselors integer NOT NULL DEFAULT 0,
+  total_sessions integer NOT NULL DEFAULT 0,
+  average_session_duration decimal(5,2) DEFAULT 0,
+  panic_alerts integer NOT NULL DEFAULT 0,
+  mood_logs integer NOT NULL DEFAULT 0,
+  room_messages integer NOT NULL DEFAULT 0,
+  ai_interactions integer NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS system_alerts (
+  id text PRIMARY KEY,
+  type text NOT NULL,
+  threshold decimal(5,2) NOT NULL,
+  current_value decimal(5,2) NOT NULL,
+  severity text NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+  triggered boolean NOT NULL DEFAULT false,
+  last_triggered timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Legacy table aliases for backward compatibility
+CREATE TABLE IF NOT EXISTS chat_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  counselor_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  status text NOT NULL CHECK (status IN ('waiting', 'active', 'ended')) DEFAULT 'waiting',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz,
+  duration_minutes integer,
+  panic_triggered boolean NOT NULL DEFAULT false,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  counselor_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  message text NOT NULL,
+  message_type text NOT NULL CHECK (message_type IN ('user', 'counselor', 'system')) DEFAULT 'user',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  migrated boolean NOT NULL DEFAULT false,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS mood_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  mood_level integer NOT NULL CHECK (mood_level >= 1 AND mood_level <= 10),
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  migrated boolean NOT NULL DEFAULT false,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS panic_alerts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id uuid REFERENCES chat_sessions(id) ON DELETE SET NULL,
+  alert_type text NOT NULL CHECK (alert_type IN ('manual', 'auto')) DEFAULT 'manual',
+  status text NOT NULL CHECK (status IN ('active', 'resolved', 'escalated')) DEFAULT 'active',
+  resolution_status text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  resolved_at timestamptz,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS user_activities (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  activity_type text NOT NULL,
+  details jsonb DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS emergency_alerts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  alert_type text NOT NULL,
+  severity text NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+  status text NOT NULL CHECK (status IN ('active', 'acknowledged', 'resolved')) DEFAULT 'active',
+  description text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  acknowledged_at timestamptz,
+  resolved_at timestamptz,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_sessions_participant ON sessions(participant_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_counselor ON sessions(counselor_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
+CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
+
+-- V8 indexes
+CREATE INDEX IF NOT EXISTS idx_emotional_states_user ON emotional_states(user_id);
+CREATE INDEX IF NOT EXISTS idx_emotional_states_expires ON emotional_states(expires_at);
+CREATE INDEX IF NOT EXISTS idx_counselor_profiles_availability ON counselor_profiles(availability);
+CREATE INDEX IF NOT EXISTS idx_counselor_profiles_timezone ON counselor_profiles(timezone);
+CREATE INDEX IF NOT EXISTS idx_routing_history_participant ON routing_history(participant_id);
+CREATE INDEX IF NOT EXISTS idx_community_rooms_topic ON community_rooms(topic);
+CREATE INDEX IF NOT EXISTS idx_room_participants_room ON room_participants(room_id);
+CREATE INDEX IF NOT EXISTS idx_room_messages_room ON room_messages(room_id);
+CREATE INDEX IF NOT EXISTS idx_ai_interactions_user ON ai_interactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_recovery_metrics_user ON recovery_metrics(user_id);
+CREATE INDEX IF NOT EXISTS idx_offline_messages_user ON offline_messages(user_id);
+CREATE INDEX IF NOT EXISTS idx_federation_messages_status ON federation_messages(status);
+CREATE INDEX IF NOT EXISTS idx_activity_metrics_timestamp ON activity_metrics(timestamp);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_mood_logs_user ON mood_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_panic_alerts_user ON panic_alerts(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_activities_user ON user_activities(user_id);
+
+-- Row Level Security (RLS) policies for data privacy
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE emotional_states ENABLE ROW LEVEL SECURITY;
+ALTER TABLE counselor_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE community_rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE room_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recovery_metrics ENABLE ROW LEVEL SECURITY;
+
+-- Basic RLS policies (would be expanded based on authentication system)
+-- These are placeholder policies - actual implementation depends on auth system
+CREATE POLICY "Users can view own data" ON users FOR SELECT USING (id = current_user_id());
+CREATE POLICY "Counselors can view participant sessions" ON sessions FOR SELECT USING (
+  counselor_id = current_user_id() OR role = 'moderator'
 );
 
 -- Daily mood check-ins for participants
@@ -93,6 +398,139 @@ CREATE TABLE IF NOT EXISTS panic_alerts (
 CREATE INDEX IF NOT EXISTS idx_panic_alerts_status ON panic_alerts(status);
 
 -- Indexes to support lookups
+
+-- V9 CLINICAL DATA ARCHITECTURE
+-- Behavioral data layer designed for psychological research
+
+-- Emotion logs: Daily mood tracking and emotional state signals
+CREATE TABLE IF NOT EXISTS emotion_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  mood_score integer NOT NULL CHECK (mood_score >= 1 AND mood_score <= 10),
+  emotional_state text NOT NULL CHECK (emotional_state IN ('stable', 'recovering', 'distressed', 'high_risk')),
+  intensity_level integer NOT NULL CHECK (intensity_level >= 1 AND intensity_level <= 5),
+  context_tags text[] DEFAULT '{}', -- e.g., ['heartbreak', 'anxiety', 'grief']
+  notes text,
+  logged_at timestamptz NOT NULL DEFAULT now(),
+  metadata jsonb DEFAULT '{}'::jsonb,
+  research_consent boolean NOT NULL DEFAULT true -- User consent for research use
+);
+
+-- Session metrics: Quantitative session data for research
+CREATE TABLE IF NOT EXISTS session_metrics (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  counselor_id uuid REFERENCES users(id) ON DELETE SET NULL,
+  duration_minutes integer NOT NULL DEFAULT 0,
+  message_count integer NOT NULL DEFAULT 0,
+  chat_intensity decimal(3,2) NOT NULL DEFAULT 0.0, -- 0.0 to 1.0 based on message frequency and length
+  emotional_valence decimal(3,2), -- -1.0 (negative) to 1.0 (positive) sentiment
+  support_type text CHECK (support_type IN ('counselor', 'peer', 'ai_assisted')),
+  started_at timestamptz NOT NULL,
+  ended_at timestamptz,
+  research_consent boolean NOT NULL DEFAULT true,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- Conversation patterns: Analyzed conversation characteristics
+CREATE TABLE IF NOT EXISTS conversation_patterns (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  pattern_type text NOT NULL, -- e.g., 'crisis_expression', 'progress_sharing', 'coping_discussion'
+  confidence_score decimal(3,2) NOT NULL CHECK (confidence_score >= 0 AND confidence_score <= 1),
+  key_phrases text[] DEFAULT '{}',
+  emotional_indicators jsonb DEFAULT '{}'::jsonb,
+  detected_at timestamptz NOT NULL DEFAULT now(),
+  research_consent boolean NOT NULL DEFAULT true
+);
+
+-- Recovery metrics: Dynamic recovery progress indicators (V9 enhanced version)
+CREATE TABLE IF NOT EXISTS clinical_recovery_metrics (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recovery_progress_score decimal(3,2) NOT NULL CHECK (recovery_progress_score >= 0 AND recovery_progress_score <= 1),
+  emotional_stability_index decimal(3,2) NOT NULL CHECK (emotional_stability_index >= 0 AND emotional_stability_index <= 1),
+  risk_level_indicator text NOT NULL CHECK (risk_level_indicator IN ('low', 'moderate', 'high', 'critical')),
+  progress_pattern text NOT NULL CHECK (progress_pattern IN ('improving', 'stable', 'plateau', 'relapse_risk', 'high_risk')),
+  calculated_at timestamptz NOT NULL DEFAULT now(),
+  signals_used jsonb NOT NULL DEFAULT '{}'::jsonb, -- Which signals contributed to this calculation
+  research_consent boolean NOT NULL DEFAULT true,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- Panic events: Detailed panic button usage for research
+CREATE TABLE IF NOT EXISTS panic_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id uuid REFERENCES sessions(id) ON DELETE SET NULL,
+  trigger_reason text, -- User-provided reason if available
+  severity_level integer NOT NULL CHECK (severity_level >= 1 AND severity_level <= 5),
+  response_time_seconds integer, -- How long until counselor response
+  resolution_status text NOT NULL CHECK (resolution_status IN ('resolved', 'escalated', 'abandoned')) DEFAULT 'resolved',
+  triggered_at timestamptz NOT NULL DEFAULT now(),
+  resolved_at timestamptz,
+  research_consent boolean NOT NULL DEFAULT true,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- Support circle participation: Anonymous community engagement metrics
+CREATE TABLE IF NOT EXISTS support_circle_participation (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  circle_id uuid NOT NULL, -- References community_rooms.id
+  participation_type text NOT NULL CHECK (participation_type IN ('joined', 'posted', 'reacted', 'viewed')),
+  engagement_score integer NOT NULL DEFAULT 1 CHECK (engagement_score >= 1 AND engagement_score <= 10),
+  participated_at timestamptz NOT NULL DEFAULT now(),
+  research_consent boolean NOT NULL DEFAULT true,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- Healing guidance interactions: Track system suggestions and user responses
+CREATE TABLE IF NOT EXISTS healing_guidance_interactions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  guidance_type text NOT NULL CHECK (guidance_type IN ('breathing_exercise', 'journaling', 'support_circle', 'rest_period', 'counselor_support')),
+  emotional_context jsonb NOT NULL DEFAULT '{}'::jsonb, -- State that triggered the guidance
+  user_response text CHECK (user_response IN ('accepted', 'dismissed', 'completed')),
+  effectiveness_rating integer CHECK (effectiveness_rating >= 1 AND effectiveness_rating <= 5),
+  suggested_at timestamptz NOT NULL DEFAULT now(),
+  responded_at timestamptz,
+  research_consent boolean NOT NULL DEFAULT true,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- Research consent settings: User control over data usage
+CREATE TABLE IF NOT EXISTS research_consent_settings (
+  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  allow_anonymous_research_data boolean NOT NULL DEFAULT true,
+  consent_granted_at timestamptz,
+  consent_version text NOT NULL DEFAULT 'v9.0',
+  data_categories jsonb DEFAULT '[]'::jsonb, -- Array of allowed data categories
+  research_purposes jsonb DEFAULT '[]'::jsonb, -- Array of allowed research purposes
+  institution_restrictions jsonb DEFAULT '[]'::jsonb, -- Institutions blocked from accessing data
+  geographic_restrictions jsonb DEFAULT '[]'::jsonb, -- Geographic regions blocked from accessing data
+  withdrawal_requested_at timestamptz,
+  withdrawal_reason text,
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- V9 Performance and Research Indexes
+CREATE INDEX IF NOT EXISTS idx_emotion_logs_user_date ON emotion_logs(user_id, logged_at);
+CREATE INDEX IF NOT EXISTS idx_emotion_logs_research_consent ON emotion_logs(research_consent) WHERE research_consent = true;
+CREATE INDEX IF NOT EXISTS idx_session_metrics_user ON session_metrics(user_id);
+CREATE INDEX IF NOT EXISTS idx_session_metrics_research_consent ON session_metrics(research_consent) WHERE research_consent = true;
+CREATE INDEX IF NOT EXISTS idx_conversation_patterns_user ON conversation_patterns(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversation_patterns_research_consent ON conversation_patterns(research_consent) WHERE research_consent = true;
+CREATE INDEX IF NOT EXISTS idx_clinical_recovery_metrics_user ON clinical_recovery_metrics(user_id);
+CREATE INDEX IF NOT EXISTS idx_clinical_recovery_metrics_research_consent ON clinical_recovery_metrics(research_consent) WHERE research_consent = true;
+CREATE INDEX IF NOT EXISTS idx_panic_events_user ON panic_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_panic_events_research_consent ON panic_events(research_consent) WHERE research_consent = true;
+CREATE INDEX IF NOT EXISTS idx_support_circle_participation_user ON support_circle_participation(user_id);
+CREATE INDEX IF NOT EXISTS idx_support_circle_participation_research_consent ON support_circle_participation(research_consent) WHERE research_consent = true;
+CREATE INDEX IF NOT EXISTS idx_healing_guidance_interactions_user ON healing_guidance_interactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_healing_guidance_interactions_research_consent ON healing_guidance_interactions(research_consent) WHERE research_consent = true;
 CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
 CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
 CREATE INDEX IF NOT EXISTS idx_mood_logs_user ON mood_logs(user_id);
@@ -927,3 +1365,119 @@ BEGIN
   RETURN encode(digest(user_uuid::text || 'research_salt_2024', 'sha256'), 'hex');
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
+
+-- ===========================================
+-- V9 RESEARCH EXPORT SYSTEM
+-- ===========================================
+
+-- Research exports audit trail for compliance and tracking
+CREATE TABLE IF NOT EXISTS research_exports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  export_id text NOT NULL UNIQUE, -- Unique identifier for the export
+  researcher_id text NOT NULL, -- Researcher identifier (could be email or institutional ID)
+  dataset_type text NOT NULL CHECK (dataset_type IN ('mood_trends', 'session_metrics', 'recovery_indicators', 'support_circle_participation', 'panic_events', 'conversation_patterns', 'healing_guidance_interactions')),
+  record_count integer NOT NULL DEFAULT 0,
+  date_range_start timestamptz NOT NULL,
+  date_range_end timestamptz NOT NULL,
+  research_purpose text NOT NULL, -- Required ethical documentation
+  anonymization_level text NOT NULL DEFAULT 'full' CHECK (anonymization_level IN ('full', 'partial', 'minimal')),
+  export_format text NOT NULL DEFAULT 'json' CHECK (export_format IN ('json', 'csv')),
+  ip_address inet, -- For audit trail (anonymized after retention period)
+  user_agent text, -- For audit trail
+  exported_at timestamptz NOT NULL DEFAULT now(),
+  expires_at timestamptz NOT NULL DEFAULT (now() + INTERVAL '7 years'), -- Research data retention
+  metadata jsonb DEFAULT '{}'::jsonb
+);
+
+-- Indexes for research exports
+CREATE INDEX IF NOT EXISTS idx_research_exports_researcher ON research_exports(researcher_id);
+CREATE INDEX IF NOT EXISTS idx_research_exports_dataset ON research_exports(dataset_type);
+CREATE INDEX IF NOT EXISTS idx_research_exports_exported ON research_exports(exported_at DESC);
+CREATE INDEX IF NOT EXISTS idx_research_exports_expires ON research_exports(expires_at);
+
+-- Row Level Security for research exports (only moderators can view)
+ALTER TABLE research_exports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Moderators can view research exports" ON research_exports
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('moderator')
+    )
+  );
+
+CREATE POLICY "System can insert research exports" ON research_exports
+  FOR INSERT WITH CHECK (true); -- Allow system to log exports
+
+-- ===========================================
+-- V9 COUNSELOR RESEARCH DASHBOARD
+-- ===========================================
+
+-- Counselor dashboard cache for performance
+CREATE TABLE IF NOT EXISTS counselor_dashboard_cache (
+  counselor_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  dashboard_data jsonb NOT NULL,
+  last_updated timestamptz NOT NULL DEFAULT now()
+);
+
+-- Indexes for dashboard cache
+CREATE INDEX IF NOT EXISTS idx_counselor_dashboard_cache_updated ON counselor_dashboard_cache(last_updated);
+
+-- Row Level Security for dashboard cache
+ALTER TABLE counselor_dashboard_cache ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Counselors can view own dashboard cache" ON counselor_dashboard_cache
+  FOR SELECT USING (counselor_id = auth.uid());
+
+CREATE POLICY "System can update dashboard cache" ON counselor_dashboard_cache
+  FOR ALL USING (auth.uid() = 'system' OR counselor_id = auth.uid());
+
+-- ===========================================
+-- V9 LONG-TERM EMOTIONAL MODELING
+-- ===========================================
+
+-- Emotional models cache for advanced pattern analysis
+CREATE TABLE IF NOT EXISTS emotional_models (
+  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  model_data jsonb NOT NULL,
+  last_updated timestamptz NOT NULL DEFAULT now()
+);
+
+-- Indexes for emotional models
+CREATE INDEX IF NOT EXISTS idx_emotional_models_updated ON emotional_models(last_updated);
+
+-- Row Level Security for emotional models
+ALTER TABLE emotional_models ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own emotional models" ON emotional_models
+  FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "System can update emotional models" ON emotional_models
+  FOR ALL USING (auth.uid() = 'system' OR user_id = auth.uid());
+
+-- ===========================================
+-- V9 DATA MINIMIZATION SYSTEM
+-- ===========================================
+
+-- System configuration storage
+CREATE TABLE IF NOT EXISTS system_config (
+  config_key text PRIMARY KEY,
+  config_data jsonb NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_by text DEFAULT 'system'
+);
+
+-- Indexes for system config
+CREATE INDEX IF NOT EXISTS idx_system_config_updated ON system_config(updated_at);
+
+-- Row Level Security for system config
+ALTER TABLE system_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Moderators can view system config" ON system_config
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('moderator')
+    )
+  );
+
+CREATE POLICY "System can manage system config" ON system_config
+  FOR ALL USING (auth.uid() = 'system');
