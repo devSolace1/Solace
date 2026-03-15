@@ -1,159 +1,188 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
-import { initAnonymousSession } from '../../lib/auth';
 import { useSolaceStore } from '../../lib/store';
+import { ApiService } from '../../services/api';
+import { DetectionService } from '../../services/detection';
+import { EmotionalAnalysisService } from '../../services/emotionalAnalysis';
+import { CrisisDetectionService } from '../../services/crisisDetection';
+import { AntiAbuseService } from '../../services/antiAbuse';
+import { useSession } from '../../hooks/useSession';
+import { useRealtime } from '../../hooks/useRealtime';
+import { debounce } from '../../utils';
 import ChatMessageBubble from './ChatMessageBubble';
 import PanicButton from '../PanicButton';
 import ReportDialog from '../moderation/ReportDialog';
-import { Send, Flag } from 'lucide-react';
+import { Send, Flag, Wifi, WifiOff } from 'lucide-react';
 
 export default function ChatSession() {
-  const { user, setUser, sessionId, setSession, messages, setMessages, addMessage, counselorId } = useSolaceStore();
-  const [loading, setLoading] = useState(true);
+  const {
+    user,
+    sessionId,
+    setSession,
+    messages,
+    setMessages,
+    addMessage,
+    updateMessageStatus,
+    counselorId,
+    connectionStatus,
+    typingUsers,
+    setPanicState,
+    setEmotionalState,
+  } = useSolaceStore();
+  const { loading: sessionLoading, error: sessionError } = useSession();
+  const { sendTyping } = useRealtime(sessionId);
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const subscriptionCleanupRef = useRef<(() => void) | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadMessages = useCallback(
-    async (sessionId: string, userId: string) => {
-      const res = await fetch(`/api/chat/messages?sessionId=${encodeURIComponent(sessionId)}`);
-      if (!res.ok) return;
-      const body = (await res.json()) as { messages: Array<any> };
-      const parsed = body.messages.map((message) => ({
-        id: message.id,
-        senderId: message.sender_id,
-        content: message.content,
-        createdAt: message.created_at,
-        isOwn: message.sender_id === userId,
-      }));
-      setMessages(parsed);
+    async (sessionId: string) => {
+      try {
+        const data = await ApiService.getMessages(sessionId);
+        const parsed = data.messages.map((message: any) => ({
+          id: message.id,
+          senderId: message.sender_id,
+          content: message.content,
+          createdAt: message.created_at,
+          isOwn: message.sender_id === user?.userId,
+          deliveryStatus: 'delivered' as const,
+        }));
+        setMessages(parsed);
+      } catch (err) {
+        setError('Failed to load messages');
+      }
     },
-    [setMessages]
-  );
-
-  const subscribeToMessages = useCallback(
-    (sessionId: string, userId: string) => {
-      const channel = supabase
-        .channel(`public:messages:session:${sessionId}`)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'messages', filter: `session_id=eq.${sessionId}` },
-          (payload: any) => {
-            const message = payload.new;
-            addMessage({
-              id: message.id,
-              senderId: message.sender_id,
-              content: message.content,
-              createdAt: message.created_at,
-              isOwn: message.sender_id === userId,
-            });
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    },
-    [addMessage]
+    [user?.userId, setMessages]
   );
 
   useEffect(() => {
-    void (async () => {
+    const initializeChat = async () => {
+      if (!user) return;
+
       try {
-        const session = await initAnonymousSession();
-        setUser(session);
-
-        const matchRes = await fetch('/api/match/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: session.userId }),
-        });
-
-        if (!matchRes.ok) {
-          const body = await matchRes.json();
-          throw new Error(body?.error ?? 'Failed to start matching');
-        }
-
-        const match = await matchRes.json();
+        const match = await ApiService.startMatch(user.userId);
         setSession(match.sessionId, match.status, match.counselorId);
 
-        // Load existing messages
-        await loadMessages(match.sessionId, session.userId);
-
-        // Subscribe to realtime messages
-        const cleanup = subscribeToMessages(match.sessionId, session.userId);
-        subscriptionCleanupRef.current = cleanup;
+        await loadMessages(match.sessionId);
       } catch (err) {
-        setError((err as Error)?.message ?? 'Unknown error');
-      } finally {
-        setLoading(false);
-      }
-    })();
-
-    return () => {
-      if (subscriptionCleanupRef.current) {
-        subscriptionCleanupRef.current();
-        subscriptionCleanupRef.current = null;
+        setError((err as Error)?.message ?? 'Failed to start session');
       }
     };
-  }, [setUser, setSession, loadMessages, subscribeToMessages]);
 
-  function scrollToBottom() {
+    if (user && !sessionId) {
+      initializeChat();
+    }
+  }, [user, sessionId, setSession, loadMessages]);
+
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }
+  };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  async function sendMessage() {
+  const debouncedSendTyping = useCallback(
+    debounce((typing: boolean) => {
+      if (user && sessionId) {
+        sendTyping(user.userId, typing);
+        setIsTyping(typing);
+      }
+    }, 500),
+    [user, sessionId, sendTyping]
+  );
+
+  const handleInputChange = (value: string) => {
+    setInput(value);
+    debouncedSendTyping(value.length > 0);
+  };
+
+  const sendMessage = async () => {
     if (!input.trim() || !sessionId || !user) return;
-    const payload = {
-      sessionId,
-      senderId: user.userId,
-      content: input.trim(),
-    };
+
+    const content = input.trim();
     setInput('');
 
-    const res = await fetch('/api/chat/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      setError('Unable to send message.');
+    // Check for abuse
+    const abuseFlag = AntiAbuseService.detectAbuse(content);
+    if (abuseFlag) {
+      await AntiAbuseService.flagMessage(crypto.randomUUID(), sessionId, abuseFlag);
+      // Show warning but still send message
+      setError(AntiAbuseService.getWarningMessage(abuseFlag));
+      setTimeout(() => setError(null), 5000);
     }
-  }
 
-  async function handlePanic() {
+    // Analyze emotions
+    const analysis = EmotionalAnalysisService.analyzeMessage(content);
+
+    // Check for crisis
+    const crisis = CrisisDetectionService.detectCrisis(content);
+    if (crisis) {
+      await CrisisDetectionService.createCrisisAlert(sessionId, user.userId, crisis);
+      setPanicState({ isActive: true, escalated: true });
+    }
+
+    try {
+      const tempId = crypto.randomUUID();
+      const tempMessage = {
+        id: tempId,
+        senderId: user.userId,
+        content,
+        createdAt: new Date().toISOString(),
+        isOwn: true,
+        deliveryStatus: 'sending' as const,
+      };
+      addMessage(tempMessage);
+
+      const result = await ApiService.sendMessage(sessionId, user.userId, content);
+      updateMessageStatus(tempId, 'sent');
+
+      // Store emotional signal
+      await EmotionalAnalysisService.storeEmotionalSignal(sessionId, result.id, analysis);
+
+      // Update emotional state
+      setEmotionalState({
+        currentMood: analysis.sadness > 0.5 ? 'sad' : analysis.distress > 0.5 ? 'anxious' : undefined,
+        stressLevel: analysis.distress * 10
+      });
+
+    } catch (err) {
+      setError('Unable to send message.');
+      const tempId = crypto.randomUUID();
+      updateMessageStatus(tempId, 'failed');
+    }
+  };
+
+  const handlePanic = async () => {
     if (!sessionId) return;
-    await fetch('/api/match/panic', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
-    });
+    try {
+      await ApiService.triggerPanic(sessionId);
+      setPanicState({ isActive: true, triggeredAt: new Date(), escalated: true });
+    } catch (err) {
+      setError('Failed to trigger panic');
+    }
+  };
+
+  const handleReport = async (type: string, details: string) => {
+    if (!user || !counselorId) return;
+    try {
+      await ApiService.submitReport(user.userId, counselorId, type, details, sessionId);
+      setReportOpen(false);
+    } catch (err) {
+      setError('Failed to submit report');
+    }
+  };
+
+  if (sessionLoading) {
+    return <div className="flex items-center justify-center p-8">Initializing session...</div>;
   }
 
-  async function handleReport(type: string, details: string) {
-    if (!user) return;
-    await fetch('/api/report', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        reporterId: user.userId,
-        reportedUserId: counselorId ?? user.userId,
-        sessionId,
-        type,
-        details,
-      }),
-    });
-    setReportOpen(false);
+  if (sessionError) {
+    return <div className="flex items-center justify-center p-8 text-red-600">{sessionError}</div>;
   }
 
   return (
@@ -176,8 +205,13 @@ export default function ChatSession() {
             Report
           </button>
           <PanicButton onPanic={handlePanic} />
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-            {loading ? 'Connecting…' : 'Connected'}
+          <span className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+            {connectionStatus === 'connected' ? (
+              <Wifi className="h-3 w-3 text-green-500" />
+            ) : (
+              <WifiOff className="h-3 w-3 text-red-500" />
+            )}
+            {connectionStatus}
           </span>
         </div>
       </div>
@@ -192,6 +226,11 @@ export default function ChatSession() {
             messages.map((message) => (
               <ChatMessageBubble key={message.id} message={message} />
             ))
+          )}
+          {typingUsers.size > 0 && (
+            <div className="text-xs text-slate-500 italic">
+              {Array.from(typingUsers).join(', ')} is typing...
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
@@ -210,7 +249,7 @@ export default function ChatSession() {
             <input
               id="message"
               value={input}
-              onChange={(event) => setInput(event.target.value)}
+              onChange={(event) => handleInputChange(event.target.value)}
               placeholder="Type your message..."
               className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-calm-400 focus:outline-none focus:ring-2 focus:ring-calm-200"
             />

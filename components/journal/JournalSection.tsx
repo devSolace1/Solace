@@ -2,49 +2,49 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSolaceStore } from '../../lib/store';
-
-type JournalEntry = {
-  id: string;
-  content: string;
-  visible_to_counselor: boolean;
-  created_at: string;
-};
+import { ApiService } from '../../services/api';
+import { formatDate } from '../../utils';
 
 export default function JournalSection() {
-  const { user } = useSolaceStore();
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const { user, journalEntries, setJournalEntries, addJournalEntry } = useSolaceStore();
   const [draft, setDraft] = useState('');
   const [visible, setVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const loadEntries = useCallback(async () => {
     if (!user) return;
-    const res = await fetch(`/api/journal/entries?userId=${encodeURIComponent(user.userId)}`);
-    if (!res.ok) return;
-    const body = (await res.json()) as { entries: JournalEntry[] };
-    setEntries(body.entries);
-  }, [user]);
+    try {
+      const data = await ApiService.getJournalEntries(user.userId);
+      setJournalEntries(data.entries);
+    } catch (err) {
+      console.error('Failed to load journal entries');
+    }
+  }, [user, setJournalEntries]);
 
   useEffect(() => {
-    void loadEntries();
-  }, [loadEntries]);
+    if (user && journalEntries.length === 0) {
+      void loadEntries();
+    }
+  }, [user, journalEntries.length, loadEntries]);
 
   async function saveEntry() {
-    if (!draft.trim()) return;
+    if (!draft.trim() || !user) return;
     setSaving(true);
-    const res = await fetch('/api/journal/entries', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: user?.userId,
+    try {
+      const data = await ApiService.createJournalEntry(user.userId, draft.trim(), visible);
+      const newEntry = {
+        id: data.id,
         content: draft.trim(),
-        visible_to_counselor: visible,
-      }),
-    });
-    setSaving(false);
-    if (res.ok) {
+        createdAt: new Date().toISOString(),
+        visibleToCounselor: visible,
+      };
+      addJournalEntry(newEntry);
       setDraft('');
-      void loadEntries();
+      setVisible(false);
+    } catch (err) {
+      console.error('Failed to save entry');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -87,16 +87,16 @@ export default function JournalSection() {
         </div>
       </div>
 
-      {entries.length > 0 ? (
+      {journalEntries.length > 0 ? (
         <div className="space-y-4">
-          {entries.map((entry) => (
+          {journalEntries.map((entry) => (
             <div key={entry.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-slate-500">
-                  {new Date(entry.created_at).toLocaleDateString()} {new Date(entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {formatDate(entry.createdAt)}
                 </span>
                 <span className="rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700">
-                  {entry.visible_to_counselor ? 'Shared' : 'Private'}
+                  {entry.visibleToCounselor ? 'Shared' : 'Private'}
                 </span>
               </div>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{entry.content}</p>

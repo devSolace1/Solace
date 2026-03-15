@@ -25,11 +25,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get stats
-    const [usersResult, sessionsResult, reportsResult, messagesResult] = await Promise.all([
+    const [usersResult, sessionsResult, reportsResult, messagesResult, analyticsResult] = await Promise.all([
       supabase.from('users').select('id', { count: 'exact' }),
       supabase.from('sessions').select('id', { count: 'exact' }).eq('status', 'active'),
       supabase.from('reports').select('id', { count: 'exact' }).eq('status', 'pending'),
       supabase.from('messages').select('id', { count: 'exact' }),
+      supabase.from('analytics').select('metric, value').gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
     ]);
 
     const stats = {
@@ -37,6 +38,10 @@ export async function GET(request: NextRequest) {
       activeSessions: sessionsResult.count || 0,
       pendingReports: reportsResult.count || 0,
       totalMessages: messagesResult.count || 0,
+      dailyActiveUsers: analyticsResult.data?.find(a => a.metric === 'daily_active_users')?.value || 0,
+      sessionsStarted: analyticsResult.data?.find(a => a.metric === 'sessions_started')?.value || 0,
+      panicAlertsTriggered: analyticsResult.data?.find(a => a.metric === 'panic_alerts_triggered')?.value || 0,
+      averageSessionDuration: 0, // Would need to calculate from session data
     };
 
     return NextResponse.json(stats);

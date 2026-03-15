@@ -4,6 +4,7 @@ import { getSupabaseServer } from '@lib/supabaseServer';
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const userId = body?.userId as string;
+  const criteria = body?.criteria as { emotionalSeverity?: 'low' | 'medium' | 'high'; preferences?: string[] } | undefined;
   if (!userId) {
     return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
   }
@@ -16,7 +17,11 @@ export async function POST(req: NextRequest) {
 
   const { data: sessionData, error: sessionError } = await supabase
     .from('sessions')
-    .insert({ participant_id: userId, status: 'waiting' })
+    .insert({
+      participant_id: userId,
+      status: 'waiting',
+      metadata: criteria ? { criteria } : {}
+    })
     .select('*')
     .single();
 
@@ -24,8 +29,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: sessionError?.message ?? 'Failed to create session' }, { status: 500 });
   }
 
-  // Try to match with an available counselor. This is a best-effort, simple least-loaded matching.
-  const { data: counselorData, error: counselorError } = await supabase.rpc('find_available_counselor');
+  // Try to match with an available counselor using improved logic
+  const { data: counselorData, error: counselorError } = await supabase.rpc('find_available_counselor_v2', {
+    severity: criteria?.emotionalSeverity || 'medium',
+    preferences: criteria?.preferences || []
+  });
 
   if (counselorError) {
     console.warn('Counselor match rpc error', counselorError);

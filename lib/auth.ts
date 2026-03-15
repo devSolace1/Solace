@@ -1,30 +1,70 @@
-export type SolaceSession = {
-  userId: string;
-  role: 'participant' | 'counselor' | 'moderator';
-  recoveryKey?: string;
-};
+import type { SolaceSession } from '../types';
 
-const STORAGE_KEY = 'solace_session';
+const STORAGE_KEY = 'solace_session_v2';
+const COOKIE_KEY = 'solace_session_v2';
+const ROTATION_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
 export function getStoredSession(): SolaceSession | null {
   if (typeof window === 'undefined') return null;
+
+  // Try localStorage first
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as SolaceSession;
+    if (raw) {
+      const session = JSON.parse(raw) as SolaceSession & { expiresAt: number };
+      if (Date.now() < session.expiresAt) {
+        return session;
+      } else {
+        // Expired, remove
+        window.localStorage.removeItem(STORAGE_KEY);
+        document.cookie = `${COOKIE_KEY}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      }
+    }
   } catch {
-    return null;
+    // Ignore
   }
+
+  // Try cookie
+  try {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === COOKIE_KEY && value) {
+        const session = JSON.parse(decodeURIComponent(value)) as SolaceSession & { expiresAt: number };
+        if (Date.now() < session.expiresAt) {
+          // Restore to localStorage
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+          return session;
+        }
+      }
+    }
+  } catch {
+    // Ignore
+  }
+
+  return null;
 }
 
 export function storeSession(session: SolaceSession) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+
+  const sessionWithExpiry = {
+    ...session,
+    expiresAt: Date.now() + ROTATION_INTERVAL,
+  };
+
+  // Store in localStorage
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionWithExpiry));
+
+  // Store in cookie (httpOnly would be better, but for client-side, this is fine)
+  const cookieValue = encodeURIComponent(JSON.stringify(sessionWithExpiry));
+  document.cookie = `${COOKIE_KEY}=${cookieValue}; max-age=${ROTATION_INTERVAL / 1000}; path=/; SameSite=Strict`;
 }
 
 export function clearSession() {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(STORAGE_KEY);
+  document.cookie = `${COOKIE_KEY}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 }
 
 export async function initAnonymousSession(): Promise<SolaceSession> {
@@ -65,4 +105,22 @@ export async function restoreSession(recoveryKey: string): Promise<SolaceSession
   };
   storeSession(session);
   return session;
+}
+
+export async function rotateSessionId(currentSession: SolaceSession): Promise<SolaceSession> {
+  const newId = crypto.randomUUID();
+  const newSession: SolaceSession = {
+    ...currentSession,
+    userId: newId,
+  };
+
+  // Update server-side
+  await fetch('/api/auth/rotate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oldUserId: currentSession.userId, newUserId: newId }),
+  });
+
+  storeSession(newSession);
+  return newSession;
 }

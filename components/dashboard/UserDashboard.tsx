@@ -1,49 +1,111 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useSolaceStore } from '../../lib/store';
-import { Calendar, MessageSquare, TrendingUp } from 'lucide-react';
+import {
+  MessageSquare,
+  BookOpen,
+  TrendingUp,
+  Heart,
+  Calendar,
+  Clock,
+  Activity,
+  Target,
+  Plus,
+  Bell
+} from 'lucide-react';
+import Button from '../ui/Button';
+import Card from '../ui/Card';
+import Link from 'next/link';
 
-type SessionSummary = {
-  id: string;
-  createdAt: string;
-  status: string;
-  messageCount: number;
+type EmotionalSummary = {
+  weeklyMoodTrend: number;
+  recoveryProgress: number;
+  recentSessionSummary: string;
+  streakDays: number;
 };
 
-type MoodTrend = {
-  date: string;
-  mood: number;
-  stress: number;
+type QuickAction = {
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;
+  color: string;
+};
+
+const quickActions: QuickAction[] = [
+  {
+    title: 'Start Conversation',
+    description: 'Connect with a trained listener',
+    icon: MessageSquare,
+    href: '/chat',
+    color: 'bg-blue-500'
+  },
+  {
+    title: 'Write in Journal',
+    description: 'Reflect on your thoughts',
+    icon: BookOpen,
+    href: '/journal',
+    color: 'bg-green-500'
+  },
+  {
+    title: 'Mood Check-in',
+    description: 'Track how you\'re feeling',
+    icon: Heart,
+    href: '/mood',
+    color: 'bg-purple-500'
+  },
+  {
+    title: 'View Progress',
+    description: 'See your emotional journey',
+    icon: TrendingUp,
+    href: '/progress',
+    color: 'bg-orange-500'
+  }
+];
+
+const fadeInUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.6 }
+};
+
+const stagger = {
+  animate: {
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
 };
 
 export default function UserDashboard() {
-  const { user } = useSolaceStore();
-  const [sessions, setSessions] = useState<SessionSummary[]>([]);
-  const [moodTrends, setMoodTrends] = useState<MoodTrend[]>([]);
+  const { user, notifications } = useSolaceStore();
+  const [emotionalSummary, setEmotionalSummary] = useState<EmotionalSummary | null>(null);
+  const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
 
-    async function loadData() {
+    async function loadDashboardData() {
       try {
-        // Load session history
-        const sessionRes = await fetch('/api/dashboard/user-sessions', {
-          headers: { 'X-User-Id': user!.userId },
+        // Load emotional summary
+        const summaryRes = await fetch('/api/dashboard/emotional-summary', {
+          headers: { 'X-User-Id': user.userId },
         });
-        if (sessionRes.ok) {
-          const data = await sessionRes.json();
-          setSessions(data.sessions);
+        if (summaryRes.ok) {
+          const data = await summaryRes.json();
+          setEmotionalSummary(data);
         }
 
-        // Load mood trends
-        const moodRes = await fetch('/api/dashboard/mood-trends', {
-          headers: { 'X-User-Id': user!.userId },
+        // Load recent sessions
+        const sessionsRes = await fetch('/api/dashboard/recent-sessions', {
+          headers: { 'X-User-Id': user.userId },
         });
-        if (moodRes.ok) {
-          const data = await moodRes.json();
-          setMoodTrends(data.trends);
+        if (sessionsRes.ok) {
+          const data = await sessionsRes.json();
+          setRecentSessions(data.sessions || []);
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
@@ -52,98 +114,213 @@ export default function UserDashboard() {
       }
     }
 
-    void loadData();
+    loadDashboardData();
   }, [user]);
 
   if (loading) {
-    return <div className="text-center text-slate-600">Loading...</div>;
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <div className="h-20 bg-gray-200 rounded"></div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
-  return (
-    <div className="space-y-8">
-      {/* Session History */}
-      <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm">
-        <div className="flex items-center gap-3 mb-4">
-          <MessageSquare className="h-5 w-5 text-slate-600" />
-          <h2 className="text-lg font-semibold text-slate-900">Session History</h2>
-        </div>
-        {sessions.length === 0 ? (
-          <p className="text-sm text-slate-600">No sessions yet. Start your first chat to see history here.</p>
-        ) : (
-          <div className="space-y-3">
-            {sessions.map((session) => (
-              <div key={session.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">Session {session.id.substring(0, 8)}…</p>
-                  <p className="text-xs text-slate-500">{new Date(session.createdAt).toLocaleDateString()}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-slate-600">{session.messageCount} messages</p>
-                  <span className={`inline-block rounded-full px-2 py-1 text-xs ${
-                    session.status === 'ended' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {session.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+  const unreadNotifications = notifications.filter(n => !n.isRead);
 
-      {/* Mood Trends */}
-      <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm">
-        <div className="flex items-center gap-3 mb-4">
-          <TrendingUp className="h-5 w-5 text-slate-600" />
-          <h2 className="text-lg font-semibold text-slate-900">Mood Trends</h2>
-        </div>
-        {moodTrends.length === 0 ? (
-          <p className="text-sm text-slate-600">Complete daily check-ins to see your mood trends.</p>
-        ) : (
-          <div className="space-y-3">
-            {moodTrends.slice(0, 7).map((trend) => (
-              <div key={trend.date} className="flex items-center justify-between">
-                <span className="text-sm text-slate-700">{new Date(trend.date).toLocaleDateString()}</span>
-                <div className="flex gap-2">
-                  <span className="text-xs text-slate-600">Mood: {trend.mood}/10</span>
-                  <span className="text-xs text-slate-600">Stress: {trend.stress}/10</span>
-                </div>
+  return (
+    <motion.div
+      className="space-y-8"
+      initial="initial"
+      animate="animate"
+      variants={stagger}
+    >
+      {/* Welcome Header */}
+      <motion.div variants={fadeInUp}>
+        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
+              <p className="text-gray-600 mt-1">
+                How are you feeling today? Remember, you're taking positive steps.
+              </p>
+            </div>
+            {unreadNotifications.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <Bell className="h-5 w-5 text-blue-600" />
+                <span className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                  {unreadNotifications.length}
+                </span>
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
+        </Card>
+      </motion.div>
+
+      {/* Emotional Summary Cards */}
+      <motion.div variants={fadeInUp}>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Emotional Journey</h2>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="text-center">
+            <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-3">
+              <TrendingUp className="h-6 w-6 text-blue-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900">Weekly Trend</h3>
+            <p className="text-2xl font-bold text-blue-600 mt-1">
+              {emotionalSummary?.weeklyMoodTrend ? `${emotionalSummary.weeklyMoodTrend > 0 ? '+' : ''}${emotionalSummary.weeklyMoodTrend}%` : 'N/A'}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">vs last week</p>
+          </Card>
+
+          <Card className="text-center">
+            <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mx-auto mb-3">
+              <Target className="h-6 w-6 text-green-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900">Recovery Progress</h3>
+            <p className="text-2xl font-bold text-green-600 mt-1">
+              {emotionalSummary?.recoveryProgress || 0}%
+            </p>
+            <p className="text-sm text-gray-600 mt-1">overall improvement</p>
+          </Card>
+
+          <Card className="text-center">
+            <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg mx-auto mb-3">
+              <Activity className="h-6 w-6 text-purple-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900">Session Streak</h3>
+            <p className="text-2xl font-bold text-purple-600 mt-1">
+              {emotionalSummary?.streakDays || 0}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">days active</p>
+          </Card>
+
+          <Card className="text-center">
+            <div className="flex items-center justify-center w-12 h-12 bg-orange-100 rounded-lg mx-auto mb-3">
+              <Clock className="h-6 w-6 text-orange-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900">Last Session</h3>
+            <p className="text-2xl font-bold text-orange-600 mt-1">
+              {recentSessions.length > 0 ? 'Recent' : 'None'}
+            </p>
+            <p className="text-sm text-gray-600 mt-1">activity status</p>
+          </Card>
+        </div>
+      </motion.div>
 
       {/* Quick Actions */}
-      <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <a
-            href="/chat"
-            className="inline-flex items-center justify-center rounded-xl bg-calm-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-calm-700"
-          >
-            Start New Session
-          </a>
-          <a
-            href="/mood"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            Daily Check-in
-          </a>
-          <a
-            href="/journal"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            Write in Journal
-          </a>
-          <a
-            href="/settings"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            Account Settings
-          </a>
+      <motion.div variants={fadeInUp}>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {quickActions.map((action, index) => (
+            <motion.div
+              key={action.title}
+              variants={fadeInUp}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Link href={action.href}>
+                <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+                  <div className="flex items-center space-x-3">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${action.color}`}>
+                      <action.icon className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{action.title}</h3>
+                      <p className="text-sm text-gray-600">{action.description}</p>
+                    </div>
+                  </div>
+                </Card>
+              </Link>
+            </motion.div>
+          ))}
         </div>
-      </div>
-    </div>
+      </motion.div>
+
+      {/* Recent Activity */}
+      <motion.div variants={fadeInUp}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">Recent Activity</h2>
+          <Link href="/history">
+            <Button variant="ghost" size="sm">
+              View All
+            </Button>
+          </Link>
+        </div>
+
+        <div className="space-y-4">
+          {recentSessions.length === 0 ? (
+            <Card>
+              <div className="text-center py-8">
+                <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                <h3 className="font-semibold text-gray-900 mb-1">No recent sessions</h3>
+                <p className="text-gray-600 text-sm mb-4">
+                  Start your first conversation to begin your emotional wellness journey.
+                </p>
+                <Link href="/chat">
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Start Session
+                  </Button>
+                </Link>
+              </div>
+            </Card>
+          ) : (
+            recentSessions.slice(0, 3).map((session: any) => (
+              <Card key={session.id}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
+                      <MessageSquare className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Support Session</h3>
+                      <p className="text-sm text-gray-600">
+                        {new Date(session.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      session.status === 'ended'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {session.status}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+      </motion.div>
+
+      {/* Daily Reminder */}
+      <motion.div variants={fadeInUp}>
+        <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg">
+              <Heart className="h-6 w-6 text-purple-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">Daily Wellness Check</h3>
+              <p className="text-gray-600 text-sm">
+                How are you feeling today? Taking a moment for self-reflection can make a big difference.
+              </p>
+            </div>
+            <Link href="/mood">
+              <Button size="sm">
+                Check In
+              </Button>
+            </Link>
+          </div>
+        </Card>
+      </motion.div>
+    </motion.div>
   );
 }

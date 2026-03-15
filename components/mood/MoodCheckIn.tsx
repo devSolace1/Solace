@@ -1,15 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getStoredSession } from '../../lib/auth';
-
-type MoodLog = {
-  id: string;
-  mood: string;
-  stress_level: number | null;
-  note: string | null;
-  created_at: string;
-};
+import { useSolaceStore } from '../../lib/store';
+import { ApiService } from '../../services/api';
+import { formatDate } from '../../utils';
 
 const moodOptions = [
   { label: 'Very low', value: 'very_low' },
@@ -20,48 +14,53 @@ const moodOptions = [
 ];
 
 export default function MoodCheckIn() {
+  const { user, moodLogs, setMoodLogs, addMoodLog, setEmotionalState } = useSolaceStore();
   const [mood, setMood] = useState('neutral');
   const [stress, setStress] = useState(5);
   const [note, setNote] = useState('');
-  const [userId, setUserId] = useState<string | null>(null);
-  const [history, setHistory] = useState<MoodLog[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const session = getStoredSession();
-    setUserId(session?.userId ?? null);
-    void loadHistory(session?.userId ?? null);
-  }, []);
+    if (user && moodLogs.length === 0) {
+      void loadHistory();
+    }
+  }, [user, moodLogs.length, loadHistory]);
 
-  async function loadHistory(userId?: string | null) {
-    if (!userId) return;
-    const res = await fetch(`/api/mood/logs?userId=${encodeURIComponent(userId)}`);
-    if (!res.ok) return;
-    const body = (await res.json()) as { logs: MoodLog[] };
-    setHistory(body.logs);
+  async function loadHistory() {
+    if (!user) return;
+    try {
+      const data = await ApiService.getMoodLogs(user.userId);
+      setMoodLogs(data.logs);
+    } catch (err) {
+      console.error('Failed to load mood logs');
+    }
   }
 
   async function submit() {
-    if (!userId) {
+    if (!user) {
       setMessage('Unable to save. Session not initialized yet.');
       return;
     }
 
     setSaving(true);
-    const res = await fetch('/api/mood/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, mood, stress_level: stress, note }),
-    });
-    setSaving(false);
-
-    if (res.ok) {
+    try {
+      const data = await ApiService.logMood(user.userId, mood, stress, note);
+      const newLog = {
+        id: data.id,
+        mood,
+        stressLevel: stress,
+        note,
+        createdAt: new Date().toISOString(),
+      };
+      addMoodLog(newLog);
+      setEmotionalState({ currentMood: mood, stressLevel: stress, lastCheckIn: new Date() });
       setMessage('Check-in saved.');
       setNote('');
-      void loadHistory();
-    } else {
+    } catch (err) {
       setMessage('Unable to save. Please try again.');
+    } finally {
+      setSaving(false);
     }
 
     setTimeout(() => setMessage(null), 3000);
@@ -132,21 +131,21 @@ export default function MoodCheckIn() {
         </div>
       </div>
 
-      {history.length > 0 ? (
+      {moodLogs.length > 0 ? (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-900">Recent check-ins</h3>
           <ul className="space-y-3">
-            {history.slice(0, 5).map((item) => (
+            {moodLogs.slice(0, 5).map((item) => (
               <li key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                  <span>{formatDate(item.createdAt)}</span>
                   <span>
                     Mood:{' '}
                     <span className="font-semibold text-slate-700">{item.mood.replace('_', ' ')}</span>
                   </span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                  Stress: <span className="font-semibold">{item.stress_level ?? '-'}</span>
+                  Stress: <span className="font-semibold">{item.stressLevel ?? '-'}</span>
                   {item.note ? ` · ${item.note}` : ''}
                 </p>
               </li>
