@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { AuthUser, AuthResult, RolePermissions } from './types';
+import type { AuthUser, AuthResult, RolePermissions } from '../types';
 import type { User } from '../types';
 
 export class AuthService {

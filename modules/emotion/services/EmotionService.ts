@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { EmotionEntry, MoodCheckIn, EmotionalTrend, RecoveryInsight, CopingStrategy, JournalEntry } from './types';
+import type { EmotionEntry, MoodCheckIn, EmotionalTrend, RecoveryInsight, CopingStrategy, JournalEntry } from '../types';
 
 export class EmotionService {
   private supabase;

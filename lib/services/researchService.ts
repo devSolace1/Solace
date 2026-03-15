@@ -289,6 +289,44 @@ export class ResearchService {
     }
   }
 
+  static async recordResearchMetric(payload: {
+    metricType: ResearchMetricType;
+    data: Record<string, any>;
+    metadata?: Record<string, any>;
+    recordedBy?: string;
+    studyId?: string;
+    collectionDate?: string;
+  }): Promise<boolean> {
+    const supabase = getSupabaseServer();
+    if (!supabase) return false;
+
+    try {
+      const { error } = await supabase
+        .from('research_metrics')
+        .insert({
+          study_id: payload.studyId || 'default',
+          metric_type: payload.metricType,
+          anonymous_participant_id: payload.recordedBy ? payload.recordedBy : 'unknown',
+          data: {
+            ...payload.data,
+            metadata: payload.metadata || {}
+          },
+          collection_date: payload.collectionDate || new Date().toISOString(),
+          approved_by_institution: false
+        });
+
+      if (error) {
+        console.error('Error recording research metric:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error recording research metric:', error);
+      return false;
+    }
+  }
+
   private static anonymizeParticipantId(userId: string): string {
     // Create a consistent hash for the user ID
     let hash = 0;

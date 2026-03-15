@@ -38,15 +38,15 @@ export async function GET(req: NextRequest) {
     }
 
     // Parse dates
-    const dateFilter = {
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined
+    const dateRange = {
+      start: startDate ? new Date(startDate).toISOString() : undefined,
+      end: endDate ? new Date(endDate).toISOString() : undefined
     };
 
     // Export research data
     const exportData = await ResearchService.exportResearchData({
       format: format as 'json' | 'csv',
-      dateFilter,
+      dateRange,
       anonymized: includeAnonymized
     });
 
@@ -66,7 +66,11 @@ export async function GET(req: NextRequest) {
       headers.set('Content-Disposition', `attachment; filename="solace-research-${timestamp}.csv"`);
     }
 
-    return new NextResponse(exportData, { headers });
+    if (format === 'csv') {
+      return new NextResponse(typeof exportData === 'string' ? exportData : (exportData.data as string), { headers });
+    }
+
+    return NextResponse.json(exportData, { headers });
   } catch (error) {
     console.error('Error in research data export:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { ChatSession, ChatMessage, ChatParticipant, ChatConnection, TypingIndicator } from './types';
+import type { ChatSession, ChatMessage, ChatParticipant, ChatConnection, TypingIndicator } from '../types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export class ChatService {

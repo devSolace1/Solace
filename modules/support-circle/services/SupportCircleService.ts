@@ -19,7 +19,7 @@ import type {
   AttendanceStatus,
   ResourceType,
   ModerationAction
-} from './types';
+} from '../types';
 
 export class SupportCircleService {
   private supabase;

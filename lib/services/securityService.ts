@@ -192,10 +192,23 @@ export class SecurityService {
     if (!supabase) return;
 
     try {
+      const { data, error: fetchError } = await supabase
+        .from('spam_patterns')
+        .select('detection_count')
+        .eq('pattern_type', patternType)
+        .eq('pattern_value', patternValue)
+        .single();
+
+      if (fetchError || !data) {
+        console.error('Error fetching spam pattern count:', fetchError);
+        return;
+      }
+
+      const newCount = (data.detection_count || 0) + 1;
       await supabase
         .from('spam_patterns')
         .update({
-          detection_count: supabase.raw('detection_count + 1'),
+          detection_count: newCount,
           last_detected_at: new Date().toISOString()
         })
         .eq('pattern_type', patternType)

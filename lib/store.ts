@@ -14,7 +14,6 @@ import type {
   SupportRoom,
   SupportRoomMessage,
   Notification,
-  ModerationFlag as ModerationFlagType,
   AdminAction,
   AnalyticsEvent,
   SystemHealth,
@@ -40,7 +39,6 @@ type SolaceStore = {
   aiCompanionActive: boolean;
   // V3.5 additions
   notifications: Notification[];
-  moderationFlags: ModerationFlagType[];
   adminActions: AdminAction[];
   analyticsEvents: AnalyticsEvent[];
   systemHealth: SystemHealth[];
@@ -72,8 +70,6 @@ type SolaceStore = {
   setNotifications: (notifications: Notification[]) => void;
   markNotificationRead: (id: string) => void;
   removeNotification: (id: string) => void;
-  addModerationFlagV3: (flag: ModerationFlagType) => void;
-  setModerationFlagsV3: (flags: ModerationFlagType[]) => void;
   addAdminAction: (action: AdminAction) => void;
   setAdminActions: (actions: AdminAction[]) => void;
   addAnalyticsEvent: (event: AnalyticsEvent) => void;
@@ -97,7 +93,6 @@ export const useSolaceStore = create<SolaceStore>((set, get) => ({
   aiCompanionActive: false,
   // V3.5 additions
   notifications: [],
-  moderationFlags: [],
   adminActions: [],
   analyticsEvents: [],
   systemHealth: [],
@@ -200,12 +195,6 @@ export const useSolaceStore = create<SolaceStore>((set, get) => ({
     set((state) => ({
       notifications: state.notifications.filter(n => n.id !== id)
     }));
-  },
-  addModerationFlagV3(flag) {
-    set((state) => ({ moderationFlags: [...state.moderationFlags, flag] }));
-  },
-  setModerationFlagsV3(moderationFlags) {
-    set({ moderationFlags });
   },
   addAdminAction(action) {
     set((state) => ({ adminActions: [...state.adminActions, action] }));

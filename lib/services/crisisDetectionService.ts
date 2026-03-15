@@ -1,7 +1,7 @@
-import { CrisisDetectionResult, CrisisAlertType, CrisisAlertSeverity } from '../types';
+import { CrisisDetectionResult, CrisisAlertType, CrisisAlertSeverity } from '../../types';
 
 export class CrisisDetectionService {
-  private static readonly CRISIS_KEYWORDS = {
+  private static readonly CRISIS_KEYWORDS: Record<CrisisAlertType, string[]> = {
     self_harm: [
       'kill myself', 'end it all', 'not worth living', 'better off dead',
       'want to die', 'suicide', 'self harm', 'cut myself', 'hurt myself'
@@ -24,7 +24,7 @@ export class CrisisDetectionService {
     ]
   };
 
-  private static readonly SEVERITY_WEIGHTS = {
+  private static readonly SEVERITY_WEIGHTS: Record<CrisisAlertType, number> = {
     self_harm: 10,
     suicidal_ideation: 9,
     extreme_distress: 6,

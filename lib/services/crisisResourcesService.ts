@@ -238,9 +238,21 @@ These services are confidential and staffed by trained professionals. Reaching o
     if (!supabase) return false;
 
     try {
+      const { data, error: fetchError } = await supabase
+        .from('crisis_resources')
+        .select('helpful_count')
+        .eq('id', resourceId)
+        .single();
+
+      if (fetchError || !data) {
+        console.error('Error fetching resource helpful count:', fetchError);
+        return false;
+      }
+
+      const newCount = (data.helpful_count || 0) + 1;
       const { error } = await supabase
         .from('crisis_resources')
-        .update({ helpful_count: supabase.raw('helpful_count + 1') })
+        .update({ helpful_count: newCount })
         .eq('id', resourceId);
 
       if (error) {

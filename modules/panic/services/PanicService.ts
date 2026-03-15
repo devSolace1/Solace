@@ -14,7 +14,7 @@ import type {
   CrisisLocation,
   ContactMethod,
   ResponseType
-} from './types';
+} from '../types';
 
 export class PanicService {
   private supabase;

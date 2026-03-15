@@ -57,6 +57,8 @@ export type Report = {
   createdAt: string;
 };
 
+export type AlertType = 'info' | 'success' | 'warning' | 'error';
+
 export type CounselorAvailability = {
   counselorId: string;
   activeSessions: number;
@@ -100,7 +102,12 @@ export type SupportRoom = {
   description?: string;
   category: 'heartbreak' | 'loneliness' | 'stress' | 'general';
   isActive: boolean;
+  isModerated?: boolean;
   moderatorId?: string;
+  maxParticipants?: number;
+  rules?: string;
+  guidelines?: Record<string, any>;
+  metadata?: Record<string, any>;
   createdAt: string;
 };
 

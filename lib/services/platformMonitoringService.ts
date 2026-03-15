@@ -109,14 +109,34 @@ export class PlatformMonitoringService {
     return health;
   }
 
+  static async getMetricsSummary(timeframe: string) {
+    // Timeframe expected like '24h' or '7d'
+    let hoursBack = 24;
+    const parsed = parseInt(timeframe.replace(/[^0-9]/g, ''), 10);
+    if (!isNaN(parsed)) {
+      if (timeframe.endsWith('d')) {
+        hoursBack = parsed * 24;
+      } else {
+        hoursBack = parsed;
+      }
+    }
+
+    const metrics = await this.getMetrics(undefined, 'hour', hoursBack);
+    return { timeframe, metrics };
+  }
+
+  static async getActiveAlerts() {
+    return this.getAlertSummary();
+  }
+
   static async recordMetric(
     name: string,
     value: number,
     unit?: string,
     dimensions?: Record<string, any>
-  ): Promise<void> {
+  ): Promise<boolean> {
     const supabase = getSupabaseServer();
-    if (!supabase) return;
+    if (!supabase) return false;
 
     try {
       const now = new Date();
@@ -125,7 +145,7 @@ export class PlatformMonitoringService {
       // Align to minute boundary for minute-level metrics
       periodStart.setSeconds(0, 0);
 
-      await supabase
+      const { error } = await supabase
         .from('platform_metrics')
         .insert({
           metric_name: name,
@@ -136,8 +156,16 @@ export class PlatformMonitoringService {
           period_end: new Date(periodStart.getTime() + 60 * 1000).toISOString(),
           dimensions: dimensions || {}
         });
+
+      if (error) {
+        console.error('Error recording metric:', error);
+        return false;
+      }
+
+      return true;
     } catch (error) {
       console.error('Error recording metric:', error);
+      return false;
     }
   }
 

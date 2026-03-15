@@ -13,7 +13,7 @@ import type {
   DeviceInfo,
   LocationInfo,
   DateRange
-} from './types';
+} from '../types';
 
 export class AnalyticsService {
   private supabase;

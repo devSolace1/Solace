@@ -80,12 +80,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Record metric
-    const success = await PlatformMonitoringService.recordMetric({
+    const success = await PlatformMonitoringService.recordMetric(
       metricType,
       value,
-      metadata: metadata || {},
-      recordedBy: user.id
-    });
+      undefined,
+      { ...metadata, recordedBy: user.id }
+    );
 
     if (!success) {
       return NextResponse.json({ error: 'Failed to record metric' }, { status: 500 });

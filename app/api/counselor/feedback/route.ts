@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Update counselor reputation
-    await CounselorService.updateCounselorReputation(counselorId);
+    await CounselorService.calculateCounselorReputation(counselorId);
 
     return NextResponse.json({
       success: true,

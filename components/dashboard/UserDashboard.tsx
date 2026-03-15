@@ -81,18 +81,19 @@ const stagger = {
 
 export default function UserDashboard() {
   const { user, notifications } = useSolaceStore();
+  const userId = user?.userId;
   const [emotionalSummary, setEmotionalSummary] = useState<EmotionalSummary | null>(null);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
 
     async function loadDashboardData() {
       try {
         // Load emotional summary
         const summaryRes = await fetch('/api/dashboard/emotional-summary', {
-          headers: { 'X-User-Id': user.userId },
+          headers: { 'X-User-Id': userId },
         });
         if (summaryRes.ok) {
           const data = await summaryRes.json();
@@ -101,7 +102,7 @@ export default function UserDashboard() {
 
         // Load recent sessions
         const sessionsRes = await fetch('/api/dashboard/recent-sessions', {
-          headers: { 'X-User-Id': user.userId },
+          headers: { 'X-User-Id': userId },
         });
         if (sessionsRes.ok) {
           const data = await sessionsRes.json();

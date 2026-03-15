@@ -13,7 +13,7 @@ import type {
   ModerationActionType,
   ContentType,
   ContentFlag
-} from './types';
+} from '../types';
 
 export class ModerationService {
   private supabase;

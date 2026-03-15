@@ -11,7 +11,7 @@ import type {
   NotificationType,
   NotificationPriority,
   NotificationChannel
-} from './types';
+} from '../types';
 
 export class NotificationService {
   private supabase;
